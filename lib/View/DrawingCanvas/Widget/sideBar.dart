@@ -1,22 +1,28 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:ui' as ui;
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+
 
 import 'package:alwrite/View/DrawingCanvas/Widget/palette.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
+import 'package:alwrite/Shared/global.dart';
+import 'package:alwrite/View/DrawingCanvas/Widget/textBox.dart';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide Image;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:universal_html/html.dart' as html;
 
 class CanvasSideBar extends HookWidget {
@@ -155,13 +161,13 @@ class CanvasSideBar extends HookWidget {
                   onTap: () => drawingMode.value == DrawingMode.image,
                   tooltip: '이미지 삽입',
                 ),
-                // _IconBox(
-                //   //image
-                //   iconData: FontAwesomeIcons.font,
-                //   selected: drawingMode.value == DrawingMode.text,
-                //   onTap: () => CustomTextPainter(text: String, textStyle: TextStyle);
-                //   tooltip: '텍스트 모드',
-                // ),
+                _IconBox(
+                  //text
+                  iconData: FontAwesomeIcons.font,
+                  selected: drawingMode.value == DrawingMode.text,
+                  onTap: () => drawingMode.value == DrawingMode.text,
+                  tooltip: '텍스트 모드',
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -335,6 +341,63 @@ class CanvasSideBar extends HookWidget {
               ],
             ),
             const Divider(),
+            TextButton(
+              child: const Text('OCR'),
+              onPressed: () async {
+                Uint8List? pngBytes = await getBytes();
+                final ImagePicker picker = ImagePicker();
+
+                if (pngBytes != null) {
+                  saveFile(pngBytes, 'png');
+
+                  final XFile? imageFile =
+                      await picker.pickImage(source: ImageSource.gallery);
+
+                  // final imageFile = io.File.fromRawPath(pngBytes);
+                  //print(imageFile);
+
+                  final ImageCropper imageCropper = ImageCropper();
+                  final croppedFile = await imageCropper.cropImage(
+                    sourcePath: imageFile!.path,
+                    aspectRatioPresets: [
+                      CropAspectRatioPreset.square,
+                      CropAspectRatioPreset.ratio3x2,
+                      CropAspectRatioPreset.original,
+                      CropAspectRatioPreset.ratio4x3,
+                      CropAspectRatioPreset.ratio16x9,
+                    ],
+                    uiSettings: [
+                      AndroidUiSettings(
+                        toolbarTitle: 'Cropper',
+                        toolbarColor: Colors.deepOrange,
+                        toolbarWidgetColor: Colors.white,
+                        initAspectRatio: CropAspectRatioPreset.original,
+                        lockAspectRatio: false,
+                      ),
+                      IOSUiSettings(
+                        title: 'Cropper',
+                      ),
+                      WebUiSettings(
+                        context: context,
+                      ),
+                    ],
+                  );
+                  // Use the cropped image file
+                  if (croppedFile != null) {
+                    final croppedBytes = await croppedFile.readAsBytes();
+                    saveFile(croppedBytes, 'jpg');
+                    await uploadImageToServer(croppedBytes);
+                  }
+                } //크롭 처리
+              },
+            ),
+            const Divider(),
+            TextButton(
+              child: const Text('TEXT MODE'),
+              onPressed: () async {
+                const TextBox();
+              },
+            ),
             Center(
               child: GestureDetector(
                 child: const Text(
@@ -349,69 +412,65 @@ class CanvasSideBar extends HookWidget {
     );
   }
 
-  //파일 저장
-  // void saveFile(Uint8List bytes, String extension) async {
-  //   if (kIsWeb) {
-  //     html.AnchorElement()
-  //       ..href = '${Uri.dataFromBytes(bytes, mimeType: 'image/$extension')}'
-  //       ..download = 'Alwrite-${DateTime.now().toIso8601String()}.$extension'
-  //       ..style.display = 'none'
-  //       ..click();
-  //   } else {
-  //     await FileSaver.instance.saveFile(
-  //       name: 'Alwrite-${DateTime.now().toIso8601String()}.$extension',
-  //       bytes: bytes,
-  //       ext: extension,
-  //       mimeType: extension == 'png' ? MimeType.png : MimeType.jpeg,
-  //     );
-  //   }
-  // }
-
-  
-void saveFile(Uint8List bytes, String extension) async {
-  if (kIsWeb) {
-    html.AnchorElement()
-      ..href = '${Uri.dataFromBytes(bytes, mimeType: 'image/$extension')}'
-      ..download = 'Alwrite-${DateTime.now().toIso8601String()}.$extension'
-      ..style.display = 'none'
-      ..click();
-  } else {
-    if (io.Platform.isAndroid) {
-      final directory = await getApplicationDocumentsDirectory();
-      final path = '${directory.path}/Alwrite-${DateTime.now().toIso8601String()}.$extension';
-      final file = io.File(path);
-      await file.writeAsBytes(bytes);
-
-      final mimeType = extension == 'pdf' ? MimeType.pdf :
-                      extension == 'png' ? MimeType.png : MimeType.jpeg;
-
-      // 안드로이드의 경우 FileSaver 패키지 사용
-      await FileSaver.instance.saveFile(
-        name: file.path.split('/').last,
-        bytes: bytes,
-        ext: extension,
-        mimeType: mimeType,
-      );
-    } else if (io.Platform.isIOS) {
-      final tempDir = await getTemporaryDirectory();
-      final tempPath = tempDir.path;
-      final filePath = '$tempPath/Alwrite-${DateTime.now().toIso8601String()}.$extension';
-      final file = io.File(filePath);
-      await file.writeAsBytes(bytes);
-
-      // iOS의 경우 파일 저장을 위해 공유 시트를 사용합니다.
-      const channel = MethodChannel('flutter_ios_share_extension');
-      try {
-        await channel.invokeMethod('shareFile', {
-          'filePath': filePath,
-          'fileName': 'Alwrite-${DateTime.now().toIso8601String()}.$extension',
-        });
-      } on PlatformException catch (e) {
-        print("Failed to share file: '${e.message}'.");
+  void saveFile(Uint8List bytes, String extension) async {
+    if (kIsWeb) {
+      //웹일 경우
+      html.AnchorElement()
+        ..href = '${Uri.dataFromBytes(bytes, mimeType: 'image/$extension')}'
+        ..download = 'Alwrite-${DateTime.now().toIso8601String()}.$extension'
+        ..style.display = 'none'
+        ..click();
+    } else {
+      if (io.Platform.isAndroid) {
+        final directory = await getExternalStorageDirectory();
+        final filePath =
+            '${directory?.path}/Alwrite-${DateTime.now().toIso8601String()}.$extension';
+        final file = io.File(filePath);
+        await file.writeAsBytes(bytes);
+      }
+      if (io.Platform.isIOS){
+        final directory = await getApplicationDocumentsDirectory();
+        final filePath =
+            '${directory.path}/Alwrite-${DateTime.now().toIso8601String()}.$extension';
+        final file = io.File(filePath);
+        await file.writeAsBytes(bytes);
       }
     }
   }
-}
+
+  Future<void> uploadImageToServer(Uint8List bytes) async {
+    var uri = Uri.parse(Global.apiRoot);
+    var request = http.MultipartRequest('POST', uri);
+    request.fields['file'] = 'file';
+    print('서버로 보내기@@@@@@@@@@');
+   request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      bytes,
+      filename: 'image.jpg',
+      contentType: MediaType('image', 'jpg'),
+    ),);
+    print('서버로 보내기*******');
+
+    //여기가 문제
+    var response = await request.send();
+    print('서버로 보내기~~~~~');
+    print(response);
+    print('서버로 보내기@@ㅓㅏㅇ누머랑');
+    if (response.statusCode == 200) {
+      print('Image uploaded successfully');
+    } else {
+      print('Failed to upload image. Error: ${response.reasonPhrase}');
+    }
+  
+  }
+
+ 
+  String extractStringFromResponse(String jsonResponse) {
+    Map<String, dynamic> decodedResponse = jsonDecode(jsonResponse);
+    String extractedString = decodedResponse['result'][0]['string'];
+    
+    return extractedString;
+  }
 
 
   Future<ui.Image> get _getImage async {
@@ -572,75 +631,3 @@ class _UndoRedoStack {
     sketchesNotifier.removeListener(_sketchesCountListener);
   }
 }
-
-// 이미지 페인터(이미지 삽입)
-// class Imagepainter extends CustomPainter {
-//   final ui.Image image;
-//   const ImagePainter(this.image);
-
-//   @override
-//   void paint(Canvas canvas, Size size){
-//     final paint = Paint();
-//     canvas.drawImage(image, Offset.zero, paint);
-//   }
-
-//   @override
-//   bool shouldRepaint(CustomPainter oldDelegate) => false;
-// }
-
-//텍스트 페인터(텍스트 삽입)
-class CustomTextPainter extends CustomPainter {
-  final String text;
-  final TextStyle textStyle;
-
-  CustomTextPainter({required this.text, required this.textStyle});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final textSpan = TextSpan(
-      text: text,
-      style: textStyle,
-    );
-
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    );
-
-    textPainter.layout();
-
-    final offset = Offset((size.width - textPainter.width) / 2,
-        (size.height - textPainter.height) / 2,);
-    textPainter.paint(canvas, offset);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
-
-// void saveFile(Uint8List bytes, String extension) async {
-//   if (kIsWeb) {
-//     html.AnchorElement()
-//       ..href = '${Uri.dataFromBytes(bytes, mimeType: 'image/$extension')}'
-//       ..download = 'Alwrite-${DateTime.now().toIso8601String()}.$extension'
-//       ..style.display = 'none'
-//       ..click();
-//   } else {
-//     final directory = await getApplicationDocumentsDirectory();
-//     final path = '${directory.path}/Alwrite-${DateTime.now().toIso8601String()}.$extension';
-//     final file = io.File(path);
-//     await file.writeAsBytes(bytes);
-
-//     if (io.Platform.isIOS || io.Platform.isAndroid) {
-//       final mimeType = extension == 'pdf' ? MimeType.pdf :
-//                       extension == 'png' ? MimeType.png : MimeType.jpeg;
-
-//       await FileSaver.instance.saveFile(
-//         name: file.path.split('/').last,
-//         bytes: bytes,
-//         ext: extension,
-//         mimeType: mimeType,
-//       );
-//     }
-//   }
-// }

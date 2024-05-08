@@ -1,18 +1,24 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'dart:ui';
 
+import 'package:alwrite/Shared/global.dart';
+import 'package:alwrite/View/DrawingCanvas/Model/ocrText.dart';
 import 'package:alwrite/main.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
 import 'package:flutter/material.dart' hide Image;
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:http/http.dart' as http;
 
 class DrawingCanvas extends HookWidget {
   final double height;
   final double width;
   final ValueNotifier<Color> selectedColor;
   final ValueNotifier<double> strokeSize;
-  final ValueNotifier<Image?> backgroundImage;
+  final ValueNotifier<ui.Image?> backgroundImage;
   final ValueNotifier<double> eraserSize;
   final ValueNotifier<DrawingMode> drawingMode;
   final AnimationController sideBarController;
@@ -60,7 +66,8 @@ class DrawingCanvas extends HookWidget {
     final box = context.findRenderObject()
         as RenderBox; // 캐스팅(포인터 이벤트가 발생한 위치를 포함하는 box 얻기)
     final offset = box.globalToLocal(
-        details.position,); //해당 box를 로컬 좌표계로 변환 후 화면상의 좌표를 box내의 좌표로 변환
+      details.position,
+    ); //해당 box를 로컬 좌표계로 변환 후 화면상의 좌표를 box내의 좌표로 변환
     currentSketch.value = Sketch.fromDrawingMode(
       //변수에 따라 스케치 생성(그리기모드, 도형, 지우개 등등)
       Sketch(
@@ -105,8 +112,9 @@ class DrawingCanvas extends HookWidget {
   //포인터가 화면에서 떼질때의 동작 (커서 뗄 때 현재 그림 저장 -> 새로운 그림 시작)
   void onPointerUp(PointerUpEvent details) {
     allSketches.value = List<Sketch>.from(allSketches.value)
-      ..add(currentSketch
-          .value!,); //allSketches.value 를 복사하여 새 리스트 만들고 그 리스트에 현재 스케치 추가
+      ..add(
+        currentSketch.value!,
+      ); //allSketches.value 를 복사하여 새 리스트 만들고 그 리스트에 현재 스케치 추가
     currentSketch.value = Sketch.fromDrawingMode(
       Sketch(
         points: [],
@@ -123,7 +131,7 @@ class DrawingCanvas extends HookWidget {
     );
   }
 
-  // 그림을 표시하는데 사용되는 위젯을 생성
+  //그림을 표시하는데 사용되는 위젯을 생성
   Widget buildAllSketches(BuildContext context) {
     return SizedBox(
       height: height,
@@ -181,7 +189,7 @@ class DrawingCanvas extends HookWidget {
 
 class SketchPainter extends CustomPainter {
   final List<Sketch> sketches;
-  final Image? backgroundImage;
+  final ui.Image? backgroundImage;
 
   const SketchPainter({
     Key? key,
@@ -189,9 +197,8 @@ class SketchPainter extends CustomPainter {
     required this.sketches,
   });
 
-  
   @override
-  void paint(Canvas canvas, Size size) {
+  Future<void> paint(Canvas canvas, Size size) async {
     if (backgroundImage != null) {
       canvas.drawImageRect(
         backgroundImage!,
@@ -267,7 +274,6 @@ class SketchPainter extends CustomPainter {
         );
       } else if (sketch.type == SketchType.line) {
         // 선
-        //선 그리기
         canvas.drawLine(firstPoint, lastPoint, paint);
       } else if (sketch.type == SketchType.circle) {
         // 원
@@ -296,18 +302,30 @@ class SketchPainter extends CustomPainter {
         canvas.drawPath(polygonPath, paint);
       } else if (sketch.type == SketchType.ocr) {
         //ocr
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(5)),
-          paint,
-        );
       } else if (sketch.type == SketchType.image) {
         //이미지
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(5)),
-          paint,
-        );
+        canvas.drawLine(firstPoint, lastPoint, paint);
       } else if (sketch.type == SketchType.text) {
-        //텍스트
+        const textStyle = TextStyle(
+          color: Colors.black,
+          fontSize: 30,
+        );
+        const textSpan = TextSpan(
+          text: 'Hello, world.',
+          style: textStyle,
+        );
+        final textPainter = TextPainter(
+          text: textSpan,
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout(
+          minWidth: 0,
+          maxWidth: size.width,
+        );
+        final xCenter = (size.width - textPainter.width) / 2;
+        final yCenter = (size.height - textPainter.height) / 2;
+        final offset = Offset(xCenter, yCenter);
+        textPainter.paint(canvas, offset);
       }
     }
   }
@@ -316,5 +334,26 @@ class SketchPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant SketchPainter oldDelegate) {
     return oldDelegate.sketches != sketches;
+  }
+}
+
+Future<List<ocrtext>> fetchData() async {
+  try {
+    final response =
+        await http.get(Uri.parse(Global.apiRoot));
+    if (response.statusCode == 200) {
+      var jsonResponse = json.decode(response.body);
+      if (jsonResponse['isSuccess'] == 1) {
+        List<dynamic> results = jsonResponse['result'];
+        return results.map<ocrtext>((json) => ocrtext.fromJson(json)).toList();
+      } else {
+        throw Exception('결과 로드 실패, isSuccess != 1');
+      }
+    } else {
+      throw Exception('서버 접근 실패');
+    }
+  } catch (e) {
+    print('데이터 가져오기 오류: $e');
+    throw Exception('데이터 가져오는 중 오류 발생');
   }
 }
