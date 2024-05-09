@@ -10,14 +10,14 @@ const Color kCanvasColor = Color(0xfff2f3f7);
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
+ 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Alwrite',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: false),
       debugShowCheckedModeBanner: true,
-      home: const DrawingPage(),
+      home:  const DrawingPage(),
     );
   }
 }

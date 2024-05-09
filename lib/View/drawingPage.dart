@@ -22,7 +22,11 @@ class DrawingPage extends HookWidget {
     final filled = useState<bool>(false);
     final polygonSides = useState<int>(3);
     final backgroundImage = useState<Image?>(null);
+    final size = MediaQuery.of(context).size;
+    final textInitialPosition = Offset(size.width / 2, size.height / 2);
 
+    final textOffsetNotifier =
+        useState<Offset>(textInitialPosition); // 텍스트 위치를 위한 상태 추가
     final canvasGlobalKey = GlobalKey();
 
     ValueNotifier<Sketch?> currentSketch = useState(null);
@@ -53,6 +57,7 @@ class DrawingPage extends HookWidget {
               filled: filled,
               polygonSides: polygonSides,
               backgroundImage: backgroundImage,
+              textOffsetNotifier: textOffsetNotifier,
             ),
           ),
           Positioned(

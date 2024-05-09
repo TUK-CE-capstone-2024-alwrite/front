@@ -46,6 +46,11 @@ dependencies:
   universal_html: ^2.2.4
   font_awesome_flutter: ^10.7.0
   path_provider: ^2.1.2
+  dio: ^5.4.2+1
+  http: ^1.2.1
+  screenshot: ^2.3.0
+  native_screenshot: ^1.0.0
+  image_cropper: ^5.0.1
 
 dev_dependencies:
   flutter_test:
