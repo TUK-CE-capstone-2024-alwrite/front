@@ -27,6 +27,7 @@ class DrawingCanvas extends HookWidget {
   final GlobalKey canvasGlobalKey;
   final ValueNotifier<int> polygonSides;
   final ValueNotifier<bool> filled;
+  final ValueNotifier<Offset> textOffsetNotifier; //글자 움직일 텍스트
 
   const DrawingCanvas({
     Key? key,
@@ -43,6 +44,7 @@ class DrawingCanvas extends HookWidget {
     required this.filled,
     required this.polygonSides,
     required this.backgroundImage,
+    required this.textOffsetNotifier,
   }) : super(key: key);
 
   //화면에 여러 그림 겹쳐서 표시하는 위젯.
@@ -56,6 +58,7 @@ class DrawingCanvas extends HookWidget {
         children: [
           buildAllSketches(context),
           buildCurrentPath(context),
+          buildDraggableText(context),
         ],
       ),
     );
@@ -182,6 +185,65 @@ class DrawingCanvas extends HookWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget buildDraggableText(BuildContext context) {
+    TextEditingController textEditingController = TextEditingController();
+
+    return Positioned(
+      left: textOffsetNotifier.value.dx,
+      top: textOffsetNotifier.value.dy,
+      child: Listener(
+        onPointerDown: (details) {
+          // Initial touch point
+        },
+        onPointerMove: (details) {
+          // Update text position
+          textOffsetNotifier.value += details.delta;
+        },
+        child: GestureDetector(
+          onTap: () async {
+            // Handle text editing
+            final editedText = await showDialog<String>(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: const Text('Edit Text'),
+                  content: TextField(
+                    controller: textEditingController,
+                    decoration:
+                        const InputDecoration(hintText: 'Enter your text'),
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context, textEditingController.text);
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                );
+              },
+            );
+            // Update the text only if the editedText is not null (i.e., user didn't cancel)
+            if (editedText != null) {
+              textEditingController.text = editedText;
+            }
+          },
+          child: ValueListenableBuilder(
+            valueListenable: textOffsetNotifier,
+            builder: (context, Offset offset, child) {
+              return Text(
+                textEditingController.text.isNotEmpty
+                    ? textEditingController.text
+                    : '움직이는 글자',
+                style: const TextStyle(fontSize: 50),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -339,8 +401,7 @@ class SketchPainter extends CustomPainter {
 
 Future<List<ocrtext>> fetchData() async {
   try {
-    final response =
-        await http.get(Uri.parse(Global.apiRoot));
+    final response = await http.get(Uri.parse(Global.apiRoot));
     if (response.statusCode == 200) {
       var jsonResponse = json.decode(response.body);
       if (jsonResponse['isSuccess'] == 1) {
