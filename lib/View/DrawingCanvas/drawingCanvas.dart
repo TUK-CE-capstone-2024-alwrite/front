@@ -9,9 +9,11 @@ import 'package:alwrite/View/DrawingCanvas/Model/ocrText.dart';
 import 'package:alwrite/main.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Image;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DrawingCanvas extends HookWidget {
   final double height;
@@ -50,6 +52,34 @@ class DrawingCanvas extends HookWidget {
   //화면에 여러 그림 겹쳐서 표시하는 위젯.
   @override
   Widget build(BuildContext context) {
+    final textWidgets = useState<List<Widget>>([]);
+    final textPositions =
+        useState<Map<String, Offset>>({}); // 각 텍스트의 위치를 저장하는 상태
+
+    useEffect(
+      () {
+        final timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+          SharedPreferences.getInstance().then((prefs) {
+            final loadedTexts = prefs.getStringList('texts') ?? [];
+            print(textWidgets.value);
+            print(loadedTexts);
+            textWidgets.value = loadedTexts.map((text) {
+              textPositions.value[text] =
+                  textPositions.value[text] ?? Offset(950, 400);
+              return buildDraggableText(
+                context,
+                text,
+                textPositions,
+                textPositions.value[text]!,
+              );
+            }).toList();
+          });
+        });
+        return () => timer.cancel(); // 타이머 취소 로직을 적절하게 추가
+      },
+      [],
+    );
+
     return MouseRegion(
       //마우스 이벤트 감지 후 마우스 커서 변경
       cursor: SystemMouseCursors.precise, //precise 마우스 커서로 변경
@@ -58,7 +88,7 @@ class DrawingCanvas extends HookWidget {
         children: [
           buildAllSketches(context),
           buildCurrentPath(context),
-          buildDraggableText(context),
+          ...textWidgets.value,
         ],
       ),
     );
@@ -189,61 +219,36 @@ class DrawingCanvas extends HookWidget {
     );
   }
 
-  Widget buildDraggableText(BuildContext context) {
-    TextEditingController textEditingController = TextEditingController();
-
+  Widget buildDraggableText(
+      BuildContext context,
+      String text,
+      ValueNotifier<Map<String, Offset>> textPositions,
+      Offset initialPosition) {
+    final textEditingController = TextEditingController(text: text);
     return Positioned(
-      left: textOffsetNotifier.value.dx,
-      top: textOffsetNotifier.value.dy,
-      child: Listener(
-        onPointerDown: (details) {
-          // Initial touch point
+      left: initialPosition.dx,
+      top: initialPosition.dy,
+      // child: ValueListenableBuilder(
+      //   valueListenable: textOffsetNotifier,
+      //   builder: (context, Offset offset, child) {
+      //     return Text(
+      //       textEditingController.text.isNotEmpty
+      //           ? textEditingController.text
+      //           : '123',
+      //       style: const TextStyle(fontSize: 50),
+      //     );
+      //   },
+      // ),
+      child: Draggable(
+        feedback: Text(text, style: TextStyle(fontSize: 20)), // 드래그할 때 보여질 텍스트
+        childWhenDragging: Container(), // 드래그 중일 때 원래 위치에 보여질 내용
+        onDragEnd: (details) {
+          // 드래그 끝나면 위치 업데이트
+          textPositions.value = Map.from(textPositions.value)
+            ..update(text, (value) => details.offset,
+                ifAbsent: () => details.offset);
         },
-        onPointerMove: (details) {
-          // Update text position
-          textOffsetNotifier.value += details.delta;
-        },
-        child: GestureDetector(
-          onTap: () async {
-            // Handle text editing
-            final editedText = await showDialog<String>(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: const Text('Edit Text'),
-                  content: TextField(
-                    controller: textEditingController,
-                    decoration:
-                        const InputDecoration(hintText: 'Enter your text'),
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context, textEditingController.text);
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
-                );
-              },
-            );
-            // Update the text only if the editedText is not null (i.e., user didn't cancel)
-            if (editedText != null) {
-              textEditingController.text = editedText;
-            }
-          },
-          child: ValueListenableBuilder(
-            valueListenable: textOffsetNotifier,
-            builder: (context, Offset offset, child) {
-              return Text(
-                textEditingController.text.isNotEmpty
-                    ? textEditingController.text
-                    : '움직이는 글자',
-                style: const TextStyle(fontSize: 50),
-              );
-            },
-          ),
-        ),
+        child: Text(text, style: TextStyle(fontSize: 60)), // 기본 텍스트
       ),
     );
   }

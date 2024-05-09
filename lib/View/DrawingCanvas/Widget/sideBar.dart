@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:ui' as ui;
+import 'package:alwrite/View/DrawingCanvas/Model/ocrText.dart';
+import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-
 
 import 'package:alwrite/View/DrawingCanvas/Widget/palette.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
@@ -383,10 +384,13 @@ class CanvasSideBar extends HookWidget {
                     ],
                   );
                   // Use the cropped image file
+                  // ocr값 받아온 후 sharedpreference에 저장
                   if (croppedFile != null) {
                     final croppedBytes = await croppedFile.readAsBytes();
                     saveFile(croppedBytes, 'jpg');
-                    await uploadImageToServer(croppedBytes);
+                    String getOcrText = await uploadImageToServer(croppedBytes);
+                    print(getOcrText);
+                    saveImageUrl(getOcrText);
                   }
                 } //크롭 처리
               },
@@ -428,7 +432,7 @@ class CanvasSideBar extends HookWidget {
         final file = io.File(filePath);
         await file.writeAsBytes(bytes);
       }
-      if (io.Platform.isIOS){
+      if (io.Platform.isIOS) {
         final directory = await getApplicationDocumentsDirectory();
         final filePath =
             '${directory.path}/Alwrite-${DateTime.now().toIso8601String()}.$extension';
@@ -438,17 +442,19 @@ class CanvasSideBar extends HookWidget {
     }
   }
 
-  Future<void> uploadImageToServer(Uint8List bytes) async {
+  Future<String> uploadImageToServer(Uint8List bytes) async {
     var uri = Uri.parse(Global.apiRoot);
     var request = http.MultipartRequest('POST', uri);
     request.fields['file'] = 'file';
     print('서버로 보내기@@@@@@@@@@');
-   request.files.add(http.MultipartFile.fromBytes(
-      'file',
-      bytes,
-      filename: 'image.jpg',
-      contentType: MediaType('image', 'jpg'),
-    ),);
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: 'image.jpg',
+        contentType: MediaType('image', 'jpg'),
+      ),
+    );
     print('서버로 보내기*******');
 
     //여기가 문제
@@ -458,20 +464,19 @@ class CanvasSideBar extends HookWidget {
     print('서버로 보내기@@ㅓㅏㅇ누머랑');
     if (response.statusCode == 200) {
       print('Image uploaded successfully');
+      return extractStringFromResponse(await response.stream.bytesToString());
     } else {
       print('Failed to upload image. Error: ${response.reasonPhrase}');
+      throw Exception('Failed to upload image');
     }
-  
   }
 
- 
   String extractStringFromResponse(String jsonResponse) {
     Map<String, dynamic> decodedResponse = jsonDecode(jsonResponse);
     String extractedString = decodedResponse['result'][0]['string'];
-    
+
     return extractedString;
   }
-
 
   Future<ui.Image> get _getImage async {
     final completer = Completer<ui.Image>();
