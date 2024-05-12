@@ -6,7 +6,6 @@ import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
 import 'package:alwrite/View/DrawingCanvas/Widget/sideBar.dart';
 
-
 import 'package:flutter/material.dart' hide Image;
 import 'package:flutter_hooks/flutter_hooks.dart';
 
