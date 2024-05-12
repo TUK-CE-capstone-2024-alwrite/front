@@ -1,18 +1,14 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui';
-
-import 'package:alwrite/Shared/global.dart';
-import 'package:alwrite/View/DrawingCanvas/Model/ocrText.dart';
+import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
 import 'package:alwrite/main.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Image;
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DrawingCanvas extends HookWidget {
@@ -55,19 +51,27 @@ class DrawingCanvas extends HookWidget {
     final textWidgets = useState<List<Widget>>([]);
     final textPositions =
         useState<Map<String, Offset>>({}); // 각 텍스트의 위치를 저장하는 상태
-
+    final fontSize = useState(30.0); // 폰트 초기값
+    final screenSize = MediaQuery.of(context).size;
+    final initialOffset = Offset(
+      screenSize.width / 2, // 화면 가로 중앙
+      screenSize.height / 2, // 화면 세로 중앙
+    );
+    // 텍스트 위젯을 불러오는 함수
+    // shared_preferences에 저장된 텍스트를 불러와서 화면에 표시
+    // 1초마다 갱신
     useEffect(
       () {
         final timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
           SharedPreferences.getInstance().then((prefs) {
             final loadedTexts = prefs.getStringList('texts') ?? [];
-            print(textWidgets.value);
-            print(loadedTexts);
             textWidgets.value = loadedTexts.map((text) {
+              // 텍스트 위치가 없으면 초기 위치(중앙)으로 설정
               textPositions.value[text] =
-                  textPositions.value[text] ?? Offset(950, 400);
+                  textPositions.value[text] ?? initialOffset;
               return buildDraggableText(
                 context,
+                fontSize,
                 text,
                 textPositions,
                 textPositions.value[text]!,
@@ -75,7 +79,7 @@ class DrawingCanvas extends HookWidget {
             }).toList();
           });
         });
-        return () => timer.cancel(); // 타이머 취소 로직을 적절하게 추가
+        return () => timer.cancel();
       },
       [],
     );
@@ -91,6 +95,136 @@ class DrawingCanvas extends HookWidget {
           ...textWidgets.value,
         ],
       ),
+    );
+  }
+
+  //드래그 가능한 텍스트 위젯 생성  (텍스트, 폰트사이즈, 위치, 초기위치)
+  // 폰트 사이즈 변수로 되어 있는 것처럼 폰트도 똑같이 적용하면 될듯?
+  Widget buildDraggableText(
+    BuildContext context,
+    ValueNotifier<double> fontSize,
+    String text,
+    ValueNotifier<Map<String, Offset>> textPositions,
+    Offset initialPosition,
+  ) {
+    return ValueListenableBuilder<Map<String, Offset>>(
+      valueListenable: (textPositions),
+      builder: (context, positions, child) {
+        return Positioned(
+          left: initialPosition.dx,
+          top: initialPosition.dy,
+          child: GestureDetector(
+            // 길게 누르면 삭제
+            onLongPress: () {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Text('삭제하시겠습니까?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          textPositions.value = Map.from(textPositions.value)
+                            ..remove(text);
+                          SharedPreferences.getInstance().then((prefs) {
+                            final loadedTexts =
+                                prefs.getStringList('texts') ?? [];
+                            prefs.setStringList(
+                                'texts', loadedTexts..remove(text));
+                          });
+                          Navigator.of(context).pop();
+                        },
+                        child: Text('예'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: Text('아니요'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+            // 누르면 텍스트, 폰트 사이즈 수정
+            onTap: () {
+              final textIndex = textPositions.value.keys.toList().indexOf(text);
+              final firstText = text;
+              final textOffset = textPositions.value[text]!;
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return AlertDialog(
+                        title: Text('텍스트 설정'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextField(
+                              decoration: InputDecoration(labelText: '텍스트'),
+                              controller: TextEditingController(text: text),
+                              onChanged: (newText) {
+                                text = newText;
+                              },
+                            ),
+                            Slider(
+                              value: fontSize.value,
+                              min: 1,
+                              max: 100,
+                              onChanged: (newFontSize) {
+                                setState(() {
+                                  fontSize.value = newFontSize;
+                                });
+                              },
+                              divisions: 40,
+                              label: fontSize.value.round().toString(),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              textPositions.value =
+                                  Map.from(textPositions.value)
+                                    ..remove(firstText);
+                              textPositions.value[text] = textOffset;
+                              updateImageUrl(
+                                text,
+                                textIndex,
+                              ); //shared_preferences에 저장된 텍스트 업데이트
+                              Navigator.of(context).pop();
+                            },
+                            child: Text('확인'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              );
+            },
+            child: Draggable(
+              feedback: Text(
+                text,
+                style: TextStyle(fontSize: 20, color: Colors.black),
+              ), // 드래그할 때 보여질 텍스트
+              childWhenDragging: Container(), // 드래그 중일 때 원래 위치에 보여질 내용
+              onDragEnd: (details) {
+                // 드래그 끝나면 위치 업데이트
+                textPositions.value = Map.from(textPositions.value)
+                  ..update(text, (value) => details.offset,
+                      ifAbsent: () => details.offset);
+              },
+              child: Text(
+                text,
+                style: TextStyle(fontSize: fontSize.value, color: Colors.black),
+              ), // 기본 텍스트
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -215,40 +349,6 @@ class DrawingCanvas extends HookWidget {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget buildDraggableText(
-      BuildContext context,
-      String text,
-      ValueNotifier<Map<String, Offset>> textPositions,
-      Offset initialPosition) {
-    final textEditingController = TextEditingController(text: text);
-    return Positioned(
-      left: initialPosition.dx,
-      top: initialPosition.dy,
-      // child: ValueListenableBuilder(
-      //   valueListenable: textOffsetNotifier,
-      //   builder: (context, Offset offset, child) {
-      //     return Text(
-      //       textEditingController.text.isNotEmpty
-      //           ? textEditingController.text
-      //           : '123',
-      //       style: const TextStyle(fontSize: 50),
-      //     );
-      //   },
-      // ),
-      child: Draggable(
-        feedback: Text(text, style: TextStyle(fontSize: 20)), // 드래그할 때 보여질 텍스트
-        childWhenDragging: Container(), // 드래그 중일 때 원래 위치에 보여질 내용
-        onDragEnd: (details) {
-          // 드래그 끝나면 위치 업데이트
-          textPositions.value = Map.from(textPositions.value)
-            ..update(text, (value) => details.offset,
-                ifAbsent: () => details.offset);
-        },
-        child: Text(text, style: TextStyle(fontSize: 60)), // 기본 텍스트
       ),
     );
   }
@@ -401,25 +501,5 @@ class SketchPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant SketchPainter oldDelegate) {
     return oldDelegate.sketches != sketches;
-  }
-}
-
-Future<List<ocrtext>> fetchData() async {
-  try {
-    final response = await http.get(Uri.parse(Global.apiRoot));
-    if (response.statusCode == 200) {
-      var jsonResponse = json.decode(response.body);
-      if (jsonResponse['isSuccess'] == 1) {
-        List<dynamic> results = jsonResponse['result'];
-        return results.map<ocrtext>((json) => ocrtext.fromJson(json)).toList();
-      } else {
-        throw Exception('결과 로드 실패, isSuccess != 1');
-      }
-    } else {
-      throw Exception('서버 접근 실패');
-    }
-  } catch (e) {
-    print('데이터 가져오기 오류: $e');
-    throw Exception('데이터 가져오는 중 오류 발생');
   }
 }

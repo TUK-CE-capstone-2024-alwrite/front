@@ -1,25 +1,23 @@
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:flutter/material.dart';
 
-
 // 스케치 클래스
 class Sketch {
-  final List<Offset> points; 
-  final Color color; 
+  final List<Offset> points;
+  final Color color;
   final double size;
-  final SketchType type; 
-  final bool filled; 
-  final int sides; 
+  final SketchType type;
+  final bool filled;
+  final int sides;
 
   Sketch({
-    required this.points, 
+    required this.points,
     this.color = Colors.black,
     this.type = SketchType.scribble,
     this.filled = true,
     this.sides = 3,
     required this.size,
   });
-
 
   factory Sketch.fromDrawingMode(
     Sketch sketch,
@@ -91,7 +89,7 @@ class Sketch {
 }
 
 //스케치타입 열거형
-enum SketchType { scribble, line, square, circle, polygon, ocr, image, text}
+enum SketchType { scribble, line, square, circle, polygon, ocr, image, text }
 
 //스케치타입 확장(객체 문자열을 . 으로 구분후 두번째 해당값 반환)
 extension SketchTypeX on SketchType {
