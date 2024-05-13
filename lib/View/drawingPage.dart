@@ -134,7 +134,9 @@ class DrawingPage extends HookWidget {
               ),
             ),
           ),
-          _CustomAppBar(animationController: animationController),
+          _CustomAppBar(
+              animationController: animationController,
+              title: title), // 제목을 인자로 전달
         ],
       ),
     );
@@ -143,8 +145,10 @@ class DrawingPage extends HookWidget {
 
 class _CustomAppBar extends StatelessWidget {
   final AnimationController animationController;
+  final String title; // 캔버스 제목을 위한 변수 추가
 
-  const _CustomAppBar({Key? key, required this.animationController})
+  _CustomAppBar(
+      {Key? key, required this.animationController, required this.title})
       : super(key: key);
 
   @override
@@ -167,11 +171,11 @@ class _CustomAppBar extends StatelessWidget {
               },
               icon: const Icon(Icons.menu),
             ),
-            const Text(
-              'ALWRITE',
+            Text(
+              title,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 19,
+                fontWeight: FontWeight.w600,
+                fontSize: 25,
               ),
             ),
             const SizedBox.shrink(),
