@@ -77,7 +77,10 @@ class DrawingPage extends HookWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Listener(
+          Container(
+            margin:
+                EdgeInsets.only(top: kToolbarHeight), // AppBar 높이만큼 상단 여백 추가
+            child: Listener(
               onPointerDown: (PointerDownEvent event) {
                 // 스타일러스 펜 입력 감지
                 if (event.kind == PointerDeviceKind.touch) {
@@ -111,7 +114,9 @@ class DrawingPage extends HookWidget {
                     textOffsetNotifier: textOffsetNotifier,
                   ),
                 ),
-              )),
+              ),
+            ),
+          ),
           Positioned(
             top: kToolbarHeight + 10,
             // left: -5,
@@ -153,7 +158,9 @@ class _CustomAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
+      // 색상 변경을 위해 container로 수정
+      color: Color.fromARGB(255, 94, 179, 248),
       height: kToolbarHeight,
       width: double.maxFinite,
       child: Padding(
@@ -174,9 +181,9 @@ class _CustomAppBar extends StatelessWidget {
             Text(
               title,
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 25,
-              ),
+                  fontWeight: FontWeight.w400,
+                  fontSize: 29,
+                  color: Colors.white),
             ),
             const SizedBox.shrink(),
           ],
