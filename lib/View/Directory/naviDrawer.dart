@@ -44,7 +44,7 @@ class navidrawer extends StatelessWidget {
             leading: Icon(Icons.delete),
             title: Text("휴지통", style: TextStyle(fontWeight: FontWeight.w500)),
             onTap: () {
-              // Get.to(trashPage());
+              // Get.to(HomePage2());
             },
           ),
           ListTile(
@@ -68,12 +68,8 @@ class navidrawer extends StatelessWidget {
                           title: Text(category,
                               style: TextStyle(fontWeight: FontWeight.w500)),
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      CategoryPage(category: category)),
-                            );
+                            Get.to(CategoryPage(
+                                category: category)); // 해당 카테고리 페이지로 이동
                           },
                           onLongPress: () {
                             _showDeleteCategoryDialog(

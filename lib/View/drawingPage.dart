@@ -13,10 +13,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class DrawingPage extends HookWidget {
   final String title; // 제목을 위한 필드 추가
-  final int canvasId; // 캔버스 식별자 추가
 
-  const DrawingPage({Key? key, required this.title, required this.canvasId})
-      : super(key: key);
+  const DrawingPage({
+    Key? key,
+    required this.title,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +28,7 @@ class DrawingPage extends HookWidget {
       Future<void> loadData() async {
         final prefs = await SharedPreferences.getInstance();
         String? sketchesData =
-            prefs.getString('sketches_$canvasId'); // 캔버스별 데이터 불러오기
+            prefs.getString('sketches_$title'); // 캔버스별 데이터 불러오기
         if (sketchesData != null) {
           List<dynamic> sketchesJson = jsonDecode(sketchesData);
           var loadedSketches = sketchesJson
@@ -46,8 +47,7 @@ class DrawingPage extends HookWidget {
         final prefs = await SharedPreferences.getInstance();
         String sketchesData = jsonEncode(
             allSketches.value.map((sketch) => sketch.toJson()).toList());
-        await prefs.setString(
-            'sketches_$canvasId', sketchesData); // 캔버스별 데이터 저장
+        await prefs.setString('sketches_$title', sketchesData); // 캔버스별 데이터 저장
       }
 
       return saveData;
@@ -182,7 +182,7 @@ class _CustomAppBar extends StatelessWidget {
               title,
               style: TextStyle(
                   fontWeight: FontWeight.w400,
-                  fontSize: 29,
+                  fontSize: 25,
                   color: Colors.white),
             ),
             const SizedBox.shrink(),

@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class HomePage extends StatelessWidget {
-  final canvascontroller = Get.put(Canvascontroller());
+  //final canvascontroller = Get.put(Canvascontroller());
+  final canvascontroller = Canvascontroller();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -13,7 +14,7 @@ class HomePage extends StatelessWidget {
       drawer: navidrawer(),
       appBar: AppBar(
           backgroundColor: Colors.white10,
-          title: (Text('모든메모')),
+          title: (Text('모든 캔버스')),
           actions: [
             Padding(
               padding: EdgeInsets.fromLTRB(0, 0, 15, 0),
@@ -64,7 +65,6 @@ class HomePage extends StatelessWidget {
                 onTap: () {
                   Get.to(() => DrawingPage(
                         title: title,
-                        canvasId: index,
                       ));
                 },
                 onLongPress: () => _showDeleteCanvasDialog(context, index),
@@ -103,11 +103,12 @@ class HomePage extends StatelessWidget {
                 // 새로운 캔버스 제목 추가
                 canvascontroller.addCanvasTitle(titleController.text);
                 // 새로운 캔버스 ID를 리스트의 길이로 설정 (이미 새 제목을 추가했으므로 -1을 해줌)
-                int newCanvasId = canvascontroller.canvasTitles.length - 1;
+
                 Navigator.pop(context);
                 // 새로운 캔버스 페이지로 이동
                 Get.to(() => DrawingPage(
-                    title: titleController.text, canvasId: newCanvasId));
+                      title: titleController.text,
+                    ));
               }
             },
             child: Text("추가"),
