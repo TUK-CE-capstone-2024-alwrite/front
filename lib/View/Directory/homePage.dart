@@ -106,8 +106,8 @@ class HomePage extends StatelessWidget {
                 int newCanvasId = canvascontroller.canvasTitles.length - 1;
                 Navigator.pop(context);
                 // 새로운 캔버스 페이지로 이동
-                Get.to(() => DrawingPage(
-                    title: titleController.text, canvasId: newCanvasId));
+                // Get.to(() => DrawingPage(
+                //     title: titleController.text, canvasId: newCanvasId));
               }
             },
             child: Text("추가"),
