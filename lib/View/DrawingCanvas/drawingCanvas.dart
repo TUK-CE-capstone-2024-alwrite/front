@@ -1,19 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui';
-
-import 'package:alwrite/Shared/global.dart';
-import 'package:alwrite/View/DrawingCanvas/Model/ocrText.dart';
+import 'package:alwrite/View/drawingPage.dart';
 import 'package:alwrite/main.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Image;
-import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:http/http.dart' as http;
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class DrawingCanvas extends HookWidget {
+class DrawingCanvas extends HookConsumerWidget {
   final double height;
   final double width;
   final ValueNotifier<Color> selectedColor;
@@ -28,9 +25,12 @@ class DrawingCanvas extends HookWidget {
   final ValueNotifier<int> polygonSides;
   final ValueNotifier<bool> filled;
   final ValueNotifier<Offset> textOffsetNotifier; //글자 움직일 텍스트
-
+  final List<Widget> textWidgets;
+  final String title;
   const DrawingCanvas({
     Key? key,
+    required this.title,
+    required this.textWidgets,
     required this.height,
     required this.width,
     required this.selectedColor,
@@ -49,7 +49,7 @@ class DrawingCanvas extends HookWidget {
 
   //화면에 여러 그림 겹쳐서 표시하는 위젯.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MouseRegion(
       //마우스 이벤트 감지 후 마우스 커서 변경
       cursor: SystemMouseCursors.precise, //precise 마우스 커서로 변경
@@ -58,80 +58,94 @@ class DrawingCanvas extends HookWidget {
         children: [
           buildAllSketches(context),
           buildCurrentPath(context),
-          buildDraggableText(context),
+          ..._filterTextWidgetsByTitle(title, ref),
         ],
       ),
     );
   }
 
+  List<Widget> _filterTextWidgetsByTitle(String title, WidgetRef ref) {
+    return textWidgets.where((widget) {
+      // TextProvider에서 title을 가져와 현재 title과 일치하는지 확인
+      final textProvider = ref.watch(textProviderProvider);
+      final widgetTitle = textProvider.title;
+      return widgetTitle == title;
+    }).toList();
+  }
+
   //포인터가 화면에 눌렸을 때의 동작
   void onPointerDown(PointerDownEvent details, BuildContext context) {
-    final box = context.findRenderObject()
-        as RenderBox; // 캐스팅(포인터 이벤트가 발생한 위치를 포함하는 box 얻기)
-    final offset = box.globalToLocal(
-      details.position,
-    ); //해당 box를 로컬 좌표계로 변환 후 화면상의 좌표를 box내의 좌표로 변환
-    currentSketch.value = Sketch.fromDrawingMode(
-      //변수에 따라 스케치 생성(그리기모드, 도형, 지우개 등등)
-      Sketch(
-        points: [offset],
-        size: drawingMode.value == DrawingMode.eraser
-            ? eraserSize.value
-            : strokeSize.value,
-        color: drawingMode.value == DrawingMode.eraser
-            ? kCanvasColor
-            : selectedColor.value,
-        sides: polygonSides.value,
-      ),
-      drawingMode.value,
-      filled.value,
-    );
+    if (details.kind == PointerDeviceKind.stylus) {
+      final box = context.findRenderObject()
+          as RenderBox; // 캐스팅(포인터 이벤트가 발생한 위치를 포함하는 box 얻기)
+      final offset = box.globalToLocal(
+        details.position,
+      ); //해당 box를 로컬 좌표계로 변환 후 화면상의 좌표를 box내의 좌표로 변환
+      currentSketch.value = Sketch.fromDrawingMode(
+        //변수에 따라 스케치 생성(그리기모드, 도형, 지우개 등등)
+        Sketch(
+          points: [offset],
+          size: drawingMode.value == DrawingMode.eraser
+              ? eraserSize.value
+              : strokeSize.value,
+          color: drawingMode.value == DrawingMode.eraser
+              ? kCanvasColor
+              : selectedColor.value,
+          sides: polygonSides.value,
+        ),
+        drawingMode.value,
+        filled.value,
+      );
+    }
   }
 
   // 포인터가 이동할 때마다의 동작
   void onPointerMove(PointerMoveEvent details, BuildContext context) {
-    final box = context.findRenderObject() as RenderBox;
-    final offset = box.globalToLocal(details.position);
-    final points = List<Offset>.from(currentSketch.value?.points ?? [])
-      ..add(offset); //스케치 점들을 업데이트. 리스트에 새로운 위치 추가
-
-    //현재 스케치를 새로운 그리기 모드 및 속성으로 갱신
-    currentSketch.value = Sketch.fromDrawingMode(
-      Sketch(
-        points: points,
-        size: drawingMode.value == DrawingMode.eraser
-            ? eraserSize.value
-            : strokeSize.value,
-        color: drawingMode.value == DrawingMode.eraser
-            ? kCanvasColor
-            : selectedColor.value,
-        sides: polygonSides.value,
-      ),
-      drawingMode.value,
-      filled.value,
-    );
+    if (details.kind == PointerDeviceKind.stylus) {
+      final box = context.findRenderObject() as RenderBox;
+      final offset = box.globalToLocal(details.position);
+      final points = List<Offset>.from(currentSketch.value?.points ?? [])
+        ..add(offset); //스케치 점들을 업데이트. 리스트에 새로운 위치 추가
+      //현재 스케치를 새로운 그리기 모드 및 속성으로 갱신
+      currentSketch.value = Sketch.fromDrawingMode(
+        Sketch(
+          points: points,
+          size: drawingMode.value == DrawingMode.eraser
+              ? eraserSize.value
+              : strokeSize.value,
+          color: drawingMode.value == DrawingMode.eraser
+              ? kCanvasColor
+              : selectedColor.value,
+          sides: polygonSides.value,
+        ),
+        drawingMode.value,
+        filled.value,
+      );
+    }
   }
 
   //포인터가 화면에서 떼질때의 동작 (커서 뗄 때 현재 그림 저장 -> 새로운 그림 시작)
   void onPointerUp(PointerUpEvent details) {
-    allSketches.value = List<Sketch>.from(allSketches.value)
-      ..add(
-        currentSketch.value!,
-      ); //allSketches.value 를 복사하여 새 리스트 만들고 그 리스트에 현재 스케치 추가
-    currentSketch.value = Sketch.fromDrawingMode(
-      Sketch(
-        points: [],
-        size: drawingMode.value == DrawingMode.eraser
-            ? eraserSize.value
-            : strokeSize.value,
-        color: drawingMode.value == DrawingMode.eraser
-            ? kCanvasColor
-            : selectedColor.value,
-        sides: polygonSides.value,
-      ),
-      drawingMode.value,
-      filled.value,
-    );
+    if (details.kind == PointerDeviceKind.stylus) {
+      allSketches.value = List<Sketch>.from(allSketches.value)
+        ..add(
+          currentSketch.value!,
+        ); //allSketches.value 를 복사하여 새 리스트 만들고 그 리스트에 현재 스케치 추가
+      currentSketch.value = Sketch.fromDrawingMode(
+        Sketch(
+          points: [],
+          size: drawingMode.value == DrawingMode.eraser
+              ? eraserSize.value
+              : strokeSize.value,
+          color: drawingMode.value == DrawingMode.eraser
+              ? kCanvasColor
+              : selectedColor.value,
+          sides: polygonSides.value,
+        ),
+        drawingMode.value,
+        filled.value,
+      );
+    }
   }
 
   //그림을 표시하는데 사용되는 위젯을 생성
@@ -185,65 +199,6 @@ class DrawingCanvas extends HookWidget {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget buildDraggableText(BuildContext context) {
-    TextEditingController textEditingController = TextEditingController();
-
-    return Positioned(
-      left: textOffsetNotifier.value.dx,
-      top: textOffsetNotifier.value.dy,
-      child: Listener(
-        onPointerDown: (details) {
-          // Initial touch point
-        },
-        onPointerMove: (details) {
-          // Update text position
-          textOffsetNotifier.value += details.delta;
-        },
-        child: GestureDetector(
-          onTap: () async {
-            // Handle text editing
-            final editedText = await showDialog<String>(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: const Text('Edit Text'),
-                  content: TextField(
-                    controller: textEditingController,
-                    decoration:
-                        const InputDecoration(hintText: 'Enter your text'),
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context, textEditingController.text);
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
-                );
-              },
-            );
-            // Update the text only if the editedText is not null (i.e., user didn't cancel)
-            if (editedText != null) {
-              textEditingController.text = editedText;
-            }
-          },
-          child: ValueListenableBuilder(
-            valueListenable: textOffsetNotifier,
-            builder: (context, Offset offset, child) {
-              return Text(
-                textEditingController.text.isNotEmpty
-                    ? textEditingController.text
-                    : '움직이는 글자',
-                style: const TextStyle(fontSize: 50),
-              );
-            },
-          ),
-        ),
       ),
     );
   }
@@ -363,32 +318,11 @@ class SketchPainter extends CustomPainter {
         polygonPath.close();
         canvas.drawPath(polygonPath, paint);
       } else if (sketch.type == SketchType.ocr) {
-        //ocr
-      } else if (sketch.type == SketchType.image) {
-        //이미지
-        canvas.drawLine(firstPoint, lastPoint, paint);
-      } else if (sketch.type == SketchType.text) {
-        const textStyle = TextStyle(
-          color: Colors.black,
-          fontSize: 30,
-        );
-        const textSpan = TextSpan(
-          text: 'Hello, world.',
-          style: textStyle,
-        );
-        final textPainter = TextPainter(
-          text: textSpan,
-          textDirection: TextDirection.ltr,
-        );
-        textPainter.layout(
-          minWidth: 0,
-          maxWidth: size.width,
-        );
-        final xCenter = (size.width - textPainter.width) / 2;
-        final yCenter = (size.height - textPainter.height) / 2;
-        final offset = Offset(xCenter, yCenter);
-        textPainter.paint(canvas, offset);
+        paint.strokeWidth = 1.5; // 선의 굵기를 15로 설정
+        paint.color = Colors.blue;
+        canvas.drawRect(rect, paint);
       }
+      //ocr
     }
   }
 
@@ -396,25 +330,5 @@ class SketchPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant SketchPainter oldDelegate) {
     return oldDelegate.sketches != sketches;
-  }
-}
-
-Future<List<ocrtext>> fetchData() async {
-  try {
-    final response = await http.get(Uri.parse(Global.apiRoot));
-    if (response.statusCode == 200) {
-      var jsonResponse = json.decode(response.body);
-      if (jsonResponse['isSuccess'] == 1) {
-        List<dynamic> results = jsonResponse['result'];
-        return results.map<ocrtext>((json) => ocrtext.fromJson(json)).toList();
-      } else {
-        throw Exception('결과 로드 실패, isSuccess != 1');
-      }
-    } else {
-      throw Exception('서버 접근 실패');
-    }
-  } catch (e) {
-    print('데이터 가져오기 오류: $e');
-    throw Exception('데이터 가져오는 중 오류 발생');
   }
 }

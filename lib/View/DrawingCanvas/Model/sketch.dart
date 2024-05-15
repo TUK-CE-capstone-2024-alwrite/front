@@ -1,26 +1,22 @@
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:flutter/material.dart';
 
-
 // 스케치 클래스
 class Sketch {
-  final List<Offset> points; 
-  final Color color; 
+  final List<Offset> points;
+  final Color color;
   final double size;
-  final SketchType type; 
-  final bool filled; 
-  final int sides; 
-
+  final SketchType type;
+  final bool filled;
+  final int sides;
   Sketch({
-    required this.points, 
+    required this.points,
     this.color = Colors.black,
     this.type = SketchType.scribble,
     this.filled = true,
     this.sides = 3,
     required this.size,
   });
-
-
   factory Sketch.fromDrawingMode(
     Sketch sketch,
     DrawingMode drawingMode,
@@ -51,17 +47,12 @@ class Sketch {
             return SketchType.polygon;
           case DrawingMode.ocr:
             return SketchType.ocr;
-          case DrawingMode.image:
-            return SketchType.image;
-          case DrawingMode.text:
-            return SketchType.text;
           default:
             return SketchType.scribble;
         }
       }(),
     );
   }
-
   //오프셋을 Map(String,dynamic으로 저장 후 리스트에 추가)
   Map<String, dynamic> toJson() {
     List<Map> pointsMap = points.map((e) => {'dx': e.dx, 'dy': e.dy}).toList();
@@ -88,10 +79,16 @@ class Sketch {
       sides: json['sides'],
     );
   }
+
+  Offset parsedOffset(Map<String, dynamic> json) {
+    double dx = json['dx'];
+    double dy = json['dy'];
+    return Offset(dx, dy);
+  }
 }
 
 //스케치타입 열거형
-enum SketchType { scribble, line, square, circle, polygon, ocr, image, text}
+enum SketchType { scribble, line, square, circle, polygon, ocr }
 
 //스케치타입 확장(객체 문자열을 . 으로 구분후 두번째 해당값 반환)
 extension SketchTypeX on SketchType {
