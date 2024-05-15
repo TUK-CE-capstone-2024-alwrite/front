@@ -4,11 +4,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:get/get.dart';
 
 void main() {
-  runApp(
-    ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 const Color kCanvasColor = Color(0xfff2f3f7);
@@ -18,6 +14,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(home: HomePage(), debugShowCheckedModeBanner: false);
+    return ProviderScope(
+      child: GetMaterialApp(
+        home: HomePage(),
+        debugShowCheckedModeBanner: false,
+      ),
+    );
   }
 }

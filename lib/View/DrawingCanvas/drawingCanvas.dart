@@ -2,14 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui';
-import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
 import 'package:alwrite/main.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Image;
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class DrawingCanvas extends HookWidget {
   final double height;
@@ -26,9 +24,10 @@ class DrawingCanvas extends HookWidget {
   final ValueNotifier<int> polygonSides;
   final ValueNotifier<bool> filled;
   final ValueNotifier<Offset> textOffsetNotifier; //글자 움직일 텍스트
-
+  final List<Widget> textWidgets;
   const DrawingCanvas({
     Key? key,
+    required this.textWidgets,
     required this.height,
     required this.width,
     required this.selectedColor,
@@ -48,42 +47,6 @@ class DrawingCanvas extends HookWidget {
   //화면에 여러 그림 겹쳐서 표시하는 위젯.
   @override
   Widget build(BuildContext context) {
-    final textWidgets = useState<List<Widget>>([]);
-    final textPositions =
-        useState<Map<String, Offset>>({}); // 각 텍스트의 위치를 저장하는 상태
-    final fontSize = useState(30.0); // 폰트 초기값
-    final screenSize = MediaQuery.of(context).size;
-    final initialOffset = Offset(
-      screenSize.width / 2, // 화면 가로 중앙
-      screenSize.height / 2, // 화면 세로 중앙
-    );
-    // 텍스트 위젯을 불러오는 함수
-    // shared_preferences에 저장된 텍스트를 불러와서 화면에 표시
-    // 1초마다 갱신
-    useEffect(
-      () {
-        final timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-          SharedPreferences.getInstance().then((prefs) {
-            final loadedTexts = prefs.getStringList('texts') ?? [];
-            textWidgets.value = loadedTexts.map((text) {
-              // 텍스트 위치가 없으면 초기 위치(중앙)으로 설정
-              textPositions.value[text] =
-                  textPositions.value[text] ?? initialOffset;
-              return buildDraggableText(
-                context,
-                fontSize,
-                text,
-                textPositions,
-                textPositions.value[text]!,
-              );
-            }).toList();
-          });
-        });
-        return () => timer.cancel();
-      },
-      [],
-    );
-
     return MouseRegion(
       //마우스 이벤트 감지 후 마우스 커서 변경
       cursor: SystemMouseCursors.precise, //precise 마우스 커서로 변경
@@ -92,216 +55,79 @@ class DrawingCanvas extends HookWidget {
         children: [
           buildAllSketches(context),
           buildCurrentPath(context),
-          ...textWidgets.value,
+          ...textWidgets,
         ],
       ),
     );
   }
 
-  //드래그 가능한 텍스트 위젯 생성  (텍스트, 폰트사이즈, 위치, 초기위치)
-  // 폰트 사이즈 변수로 되어 있는 것처럼 폰트도 똑같이 적용하면 될듯?
-  Widget buildDraggableText(
-    BuildContext context,
-    ValueNotifier<double> fontSize,
-    String text,
-    ValueNotifier<Map<String, Offset>> textPositions,
-    Offset initialPosition,
-  ) {
-    return ValueListenableBuilder<Map<String, Offset>>(
-      valueListenable: (textPositions),
-      builder: (context, positions, child) {
-        return Positioned(
-          left: initialPosition.dx,
-          top: initialPosition.dy,
-          child: GestureDetector(
-            // 길게 누르면 삭제
-            onLongPress: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text('삭제하시겠습니까?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          textPositions.value = Map.from(textPositions.value)
-                            ..remove(text);
-                          SharedPreferences.getInstance().then((prefs) {
-                            final loadedTexts =
-                                prefs.getStringList('texts') ?? [];
-                            prefs.setStringList(
-                                'texts', loadedTexts..remove(text));
-                          });
-                          Navigator.of(context).pop();
-                        },
-                        child: Text('예'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: Text('아니요'),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-            // 누르면 텍스트, 폰트 사이즈 수정
-            onTap: () {
-              final textIndex = textPositions.value.keys.toList().indexOf(text);
-              final firstText = text;
-              final textOffset = textPositions.value[text]!;
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return StatefulBuilder(
-                    builder: (context, setState) {
-                      return AlertDialog(
-                        title: Text('텍스트 설정'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextField(
-                              decoration: InputDecoration(labelText: '텍스트'),
-                              controller: TextEditingController(text: text),
-                              onChanged: (newText) {
-                                text = newText;
-                              },
-                            ),
-                            Slider(
-                              value: fontSize.value,
-                              min: 1,
-                              max: 100,
-                              onChanged: (newFontSize) {
-                                setState(() {
-                                  fontSize.value = newFontSize;
-                                });
-                              },
-                              divisions: 40,
-                              label: fontSize.value.round().toString(),
-                            ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              textPositions.value =
-                                  Map.from(textPositions.value)
-                                    ..remove(firstText);
-                              textPositions.value[text] = textOffset;
-                              updateImageUrl(
-                                text,
-                                textIndex,
-                              ); //shared_preferences에 저장된 텍스트 업데이트
-                              Navigator.of(context).pop();
-                            },
-                            child: Text('확인'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              );
-            },
-            child: Draggable(
-              feedback: Text(
-                text,
-                style: TextStyle(fontSize: 20, color: Colors.black),
-              ), // 드래그할 때 보여질 텍스트
-              childWhenDragging: Container(), // 드래그 중일 때 원래 위치에 보여질 내용
-              onDragEnd: (details) {
-                // 드래그 끝나면 위치 업데이트
-                textPositions.value = Map.from(textPositions.value)
-                  ..update(text, (value) => details.offset,
-                      ifAbsent: () => details.offset);
-              },
-              child: Text(
-                text,
-                style: TextStyle(fontSize: fontSize.value, color: Colors.black),
-              ), // 기본 텍스트
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   //포인터가 화면에 눌렸을 때의 동작
   void onPointerDown(PointerDownEvent details, BuildContext context) {
-    if (details.kind == PointerDeviceKind.stylus) {
-      final box = context.findRenderObject()
-          as RenderBox; // 캐스팅(포인터 이벤트가 발생한 위치를 포함하는 box 얻기)
-      final offset = box.globalToLocal(
-        details.position,
-      ); //해당 box를 로컬 좌표계로 변환 후 화면상의 좌표를 box내의 좌표로 변환
-      currentSketch.value = Sketch.fromDrawingMode(
-        //변수에 따라 스케치 생성(그리기모드, 도형, 지우개 등등)
-        Sketch(
-          points: [offset],
-          size: drawingMode.value == DrawingMode.eraser
-              ? eraserSize.value
-              : strokeSize.value,
-          color: drawingMode.value == DrawingMode.eraser
-              ? kCanvasColor
-              : selectedColor.value,
-          sides: polygonSides.value,
-        ),
-        drawingMode.value,
-        filled.value,
-      );
-    }
+    final box = context.findRenderObject()
+        as RenderBox; // 캐스팅(포인터 이벤트가 발생한 위치를 포함하는 box 얻기)
+    final offset = box.globalToLocal(
+      details.position,
+    ); //해당 box를 로컬 좌표계로 변환 후 화면상의 좌표를 box내의 좌표로 변환
+    currentSketch.value = Sketch.fromDrawingMode(
+      //변수에 따라 스케치 생성(그리기모드, 도형, 지우개 등등)
+      Sketch(
+        points: [offset],
+        size: drawingMode.value == DrawingMode.eraser
+            ? eraserSize.value
+            : strokeSize.value,
+        color: drawingMode.value == DrawingMode.eraser
+            ? kCanvasColor
+            : selectedColor.value,
+        sides: polygonSides.value,
+      ),
+      drawingMode.value,
+      filled.value,
+    );
   }
 
   // 포인터가 이동할 때마다의 동작
   void onPointerMove(PointerMoveEvent details, BuildContext context) {
-    if (details.kind == PointerDeviceKind.stylus) {
-      final box = context.findRenderObject() as RenderBox;
-      final offset = box.globalToLocal(details.position);
-      final points = List<Offset>.from(currentSketch.value?.points ?? [])
-        ..add(offset); //스케치 점들을 업데이트. 리스트에 새로운 위치 추가
-
-      //현재 스케치를 새로운 그리기 모드 및 속성으로 갱신
-      currentSketch.value = Sketch.fromDrawingMode(
-        Sketch(
-          points: points,
-          size: drawingMode.value == DrawingMode.eraser
-              ? eraserSize.value
-              : strokeSize.value,
-          color: drawingMode.value == DrawingMode.eraser
-              ? kCanvasColor
-              : selectedColor.value,
-          sides: polygonSides.value,
-        ),
-        drawingMode.value,
-        filled.value,
-      );
-    }
+    final box = context.findRenderObject() as RenderBox;
+    final offset = box.globalToLocal(details.position);
+    final points = List<Offset>.from(currentSketch.value?.points ?? [])
+      ..add(offset); //스케치 점들을 업데이트. 리스트에 새로운 위치 추가
+    //현재 스케치를 새로운 그리기 모드 및 속성으로 갱신
+    currentSketch.value = Sketch.fromDrawingMode(
+      Sketch(
+        points: points,
+        size: drawingMode.value == DrawingMode.eraser
+            ? eraserSize.value
+            : strokeSize.value,
+        color: drawingMode.value == DrawingMode.eraser
+            ? kCanvasColor
+            : selectedColor.value,
+        sides: polygonSides.value,
+      ),
+      drawingMode.value,
+      filled.value,
+    );
   }
 
   //포인터가 화면에서 떼질때의 동작 (커서 뗄 때 현재 그림 저장 -> 새로운 그림 시작)
   void onPointerUp(PointerUpEvent details) {
-    if (details.kind == PointerDeviceKind.stylus) {
-      allSketches.value = List<Sketch>.from(allSketches.value)
-        ..add(
-          currentSketch.value!,
-        ); //allSketches.value 를 복사하여 새 리스트 만들고 그 리스트에 현재 스케치 추가
-      currentSketch.value = Sketch.fromDrawingMode(
-        Sketch(
-          points: [],
-          size: drawingMode.value == DrawingMode.eraser
-              ? eraserSize.value
-              : strokeSize.value,
-          color: drawingMode.value == DrawingMode.eraser
-              ? kCanvasColor
-              : selectedColor.value,
-          sides: polygonSides.value,
-        ),
-        drawingMode.value,
-        filled.value,
-      );
-    }
+    allSketches.value = List<Sketch>.from(allSketches.value)
+      ..add(
+        currentSketch.value!,
+      ); //allSketches.value 를 복사하여 새 리스트 만들고 그 리스트에 현재 스케치 추가
+    currentSketch.value = Sketch.fromDrawingMode(
+      Sketch(
+        points: [],
+        size: drawingMode.value == DrawingMode.eraser
+            ? eraserSize.value
+            : strokeSize.value,
+        color: drawingMode.value == DrawingMode.eraser
+            ? kCanvasColor
+            : selectedColor.value,
+        sides: polygonSides.value,
+      ),
+      drawingMode.value,
+      filled.value,
+    );
   }
 
   //그림을 표시하는데 사용되는 위젯을 생성
