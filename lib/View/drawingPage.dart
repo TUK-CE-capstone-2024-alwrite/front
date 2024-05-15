@@ -46,29 +46,39 @@ class DrawingPage extends HookConsumerWidget {
 
     useEffect(
       () {
+        Future<void> load() async {
+          final prefs = await SharedPreferences.getInstance();
+
+          final loadedTexts = prefs.getStringList('texts') ?? [];
+          final textWidgets =
+              loadedTexts.where((loadText) => loadText != '').map((loadText) {
+            final parts = loadText.split(',');
+            final text = parts[1];
+            final currentTitle = parts[0];
+            // 텍스트 위치가 없으면 초기 위치(중앙)으로 설정
+            textProvider.setTitle(currentTitle);
+            textProvider.setTextPositions(ValueNotifier<Map<String, Offset>>({
+              ...textProvider.textPositions.value,
+              text: textProvider.textPositions.value[text] ?? initialOffset,
+            }));
+            return buildDraggableText(
+              textProvider.title,
+              context,
+              textProvider.fontSize,
+              text,
+              textProvider.textPositions,
+              textProvider.textPositions.value[text]!,
+            );
+          }).toList();
+
+          // 위젯 목록에 null 값이 있는지 확인 후 제거
+          textWidgets.removeWhere((widget) => widget == null);
+
+          textProvider.setTextWidgets(textWidgets);
+        }
+
         Timer.periodic(const Duration(seconds: 1), (timer) {
-          SharedPreferences.getInstance().then((prefs) {
-            final loadedTexts = prefs.getStringList('texts') ?? [];
-            final textWidgets = loadedTexts.map((loadText) {
-              final parts = loadText.split(',');
-              final text = parts[1];
-              final currentTitle = parts[0];
-              // 텍스트 위치가 없으면 초기 위치(중앙)으로 설정
-              textProvider.setTitle(currentTitle);
-              textProvider.setTextPositions(ValueNotifier<Map<String, Offset>>({
-                ...textProvider.textPositions.value,
-                text: textProvider.textPositions.value[text] ?? initialOffset,
-              }));
-              return buildDraggableText(
-                context,
-                textProvider.fontSize,
-                text,
-                textProvider.textPositions,
-                textProvider.textPositions.value[text]!,
-              );
-            }).toList();
-            textProvider.setTextWidgets(textWidgets);
-          });
+          load();
         });
         // clean-up 함수로 빈 함수를 반환
         return () => {};
@@ -205,6 +215,7 @@ class DrawingPage extends HookConsumerWidget {
 //드래그 가능한 텍스트 위젯 생성  (텍스트, 폰트사이즈, 위치, 초기위치)
 // 폰트 사이즈 변수로 되어 있는 것처럼 폰트도 똑같이 적용하면 될듯?
 Widget buildDraggableText(
+  String title,
   BuildContext context,
   double fontSize,
   String text,
@@ -296,6 +307,7 @@ Widget buildDraggableText(
                             updateImageUrl(
                               text,
                               textIndex,
+                              title,
                             ); //shared_preferences에 저장된 텍스트 업데이트
                             Navigator.of(context).pop();
                           },

@@ -6,9 +6,9 @@ Future<void> saveImageUrl(String imageUrl, String title) async {
       'texts', [...?prefs.getStringList('texts'), '${title},${imageUrl}']);
 }
 
-Future<void> updateImageUrl(String imageUrl, int index) async {
+Future<void> updateImageUrl(String imageUrl, int index, String title) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   List<String>? texts = prefs.getStringList('texts');
-  texts?[index] = imageUrl;
+  texts?[index] = '${title},${imageUrl}';
   await prefs.setStringList('texts', texts!);
 }
