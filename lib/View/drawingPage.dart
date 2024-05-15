@@ -40,7 +40,7 @@ class DrawingPage extends HookWidget {
       body: Stack(
         children: [
           Container(
-            color: kCanvasColor,
+            color: canvasColor,
             width: double.maxFinite,
             height: double.maxFinite,
             child: DrawingCanvas(

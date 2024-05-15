@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:ui' as ui;
+import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-
+import 'package:image/image.dart' as img;
 
 import 'package:alwrite/View/DrawingCanvas/Widget/palette.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
@@ -17,7 +18,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide Image;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:image_cropper/image_cropper.dart';
 
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -148,26 +148,11 @@ class CanvasSideBar extends HookWidget {
                   tooltip: '원',
                 ),
                 _IconBox(
-                  //ocr
-                  iconData: FontAwesomeIcons.wandMagicSparkles,
-                  selected: drawingMode.value == DrawingMode.ocr,
-                  onTap: () => drawingMode.value == DrawingMode.ocr,
+                  iconData: FontAwesomeIcons.wandSparkles,
+                  selected: drawingMode.value == DrawingMode.ocr, 
+                  onTap: () => drawingMode.value = DrawingMode.ocr,
                   tooltip: 'OCR',
-                ),
-                _IconBox(
-                  //image
-                  iconData: FontAwesomeIcons.image,
-                  selected: drawingMode.value == DrawingMode.image,
-                  onTap: () => drawingMode.value == DrawingMode.image,
-                  tooltip: '이미지 삽입',
-                ),
-                _IconBox(
-                  //text
-                  iconData: FontAwesomeIcons.font,
-                  selected: drawingMode.value == DrawingMode.text,
-                  onTap: () => drawingMode.value == DrawingMode.text,
-                  tooltip: '텍스트 모드',
-                ),
+                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -203,6 +188,48 @@ class CanvasSideBar extends HookWidget {
                           },
                           label: '${polygonSides.value}',
                           divisions: 5,
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              child: drawingMode.value == DrawingMode.ocr
+                  ? Row(
+                      children: [
+                        TextButton(
+                          child: const Text('텍스트로 변환하기'),
+                          onPressed: () async {
+                            Offset start = undoRedoStack
+                                .value.sketchesNotifier.value.last.points[0];
+                            Offset end = undoRedoStack
+                                .value.sketchesNotifier.value.last.points.last;
+                            Uint8List? pngBytes = await getBytes();
+
+                            img.Image fullScreenImage =
+                                img.decodeImage(pngBytes!)!;
+
+                            int x = start.dx.toInt();
+                            int y = start.dy.toInt();
+                            int width = (end.dx - start.dx).abs().toInt();
+                            int height = (end.dy - start.dy).abs().toInt();
+                            img.Image croppedImage = img.copyCrop(
+                              fullScreenImage,
+                              x: x,
+                              y: y,
+                              width: width,
+                              height: height,
+                            );
+
+                            undoRedoStack.value.undo();
+                            Uint8List croppedBytes =
+                                Uint8List.fromList(img.encodeJpg(croppedImage));
+                            String getOcrText =
+                                await uploadImageToServer(croppedBytes);
+                            print(getOcrText);
+                            saveImageUrl(getOcrText);
+                          },
                         ),
                       ],
                     )
@@ -283,7 +310,9 @@ class CanvasSideBar extends HookWidget {
                 ),
                 TextButton(
                   child: const Text('전체 지우기'),
-                  onPressed: () => undoRedoStack.value.clear(),
+                  onPressed: () {
+                    undoRedoStack.value.clear();
+                  },
                 ),
                 TextButton(
                   onPressed: () async {
@@ -344,51 +373,32 @@ class CanvasSideBar extends HookWidget {
             TextButton(
               child: const Text('OCR'),
               onPressed: () async {
+                Offset start =
+                    undoRedoStack.value.sketchesNotifier.value.last.points[0];
+                Offset end =
+                    undoRedoStack.value.sketchesNotifier.value.last.points.last;
                 Uint8List? pngBytes = await getBytes();
-                final ImagePicker picker = ImagePicker();
 
-                if (pngBytes != null) {
-                  saveFile(pngBytes, 'png');
+                img.Image fullScreenImage = img.decodeImage(pngBytes!)!;
 
-                  final XFile? imageFile =
-                      await picker.pickImage(source: ImageSource.gallery);
+                int x = start.dx.toInt();
+                int y = start.dy.toInt();
+                int width = (end.dx - start.dx).abs().toInt();
+                int height = (end.dy - start.dy).abs().toInt();
+                img.Image croppedImage = img.copyCrop(
+                  fullScreenImage,
+                  x: x,
+                  y: y,
+                  width: width,
+                  height: height,
+                );
 
-                  // final imageFile = io.File.fromRawPath(pngBytes);
-                  //print(imageFile);
-
-                  final ImageCropper imageCropper = ImageCropper();
-                  final croppedFile = await imageCropper.cropImage(
-                    sourcePath: imageFile!.path,
-                    aspectRatioPresets: [
-                      CropAspectRatioPreset.square,
-                      CropAspectRatioPreset.ratio3x2,
-                      CropAspectRatioPreset.original,
-                      CropAspectRatioPreset.ratio4x3,
-                      CropAspectRatioPreset.ratio16x9,
-                    ],
-                    uiSettings: [
-                      AndroidUiSettings(
-                        toolbarTitle: 'Cropper',
-                        toolbarColor: Colors.deepOrange,
-                        toolbarWidgetColor: Colors.white,
-                        initAspectRatio: CropAspectRatioPreset.original,
-                        lockAspectRatio: false,
-                      ),
-                      IOSUiSettings(
-                        title: 'Cropper',
-                      ),
-                      WebUiSettings(
-                        context: context,
-                      ),
-                    ],
-                  );
-                  // Use the cropped image file
-                  if (croppedFile != null) {
-                    final croppedBytes = await croppedFile.readAsBytes();
-                    saveFile(croppedBytes, 'jpg');
-                    await uploadImageToServer(croppedBytes);
-                  }
-                } //크롭 처리
+                undoRedoStack.value.undo();
+                Uint8List croppedBytes =
+                    Uint8List.fromList(img.encodeJpg(croppedImage));
+                String getOcrText = await uploadImageToServer(croppedBytes);
+                print(getOcrText);
+                saveImageUrl(getOcrText);
               },
             ),
             const Divider(),
@@ -428,7 +438,7 @@ class CanvasSideBar extends HookWidget {
         final file = io.File(filePath);
         await file.writeAsBytes(bytes);
       }
-      if (io.Platform.isIOS){
+      if (io.Platform.isIOS) {
         final directory = await getApplicationDocumentsDirectory();
         final filePath =
             '${directory.path}/Alwrite-${DateTime.now().toIso8601String()}.$extension';
@@ -438,40 +448,37 @@ class CanvasSideBar extends HookWidget {
     }
   }
 
-  Future<void> uploadImageToServer(Uint8List bytes) async {
+  Future<String> uploadImageToServer(Uint8List bytes) async {
     var uri = Uri.parse(Global.apiRoot);
     var request = http.MultipartRequest('POST', uri);
     request.fields['file'] = 'file';
-    print('서버로 보내기@@@@@@@@@@');
-   request.files.add(http.MultipartFile.fromBytes(
-      'file',
-      bytes,
-      filename: 'image.jpg',
-      contentType: MediaType('image', 'jpg'),
-    ),);
-    print('서버로 보내기*******');
 
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: 'image.jpg',
+        contentType: MediaType('image', 'jpg'),
+      ),
+    );
     //여기가 문제
     var response = await request.send();
-    print('서버로 보내기~~~~~');
-    print(response);
-    print('서버로 보내기@@ㅓㅏㅇ누머랑');
+    print('데이터 송신 요청');
     if (response.statusCode == 200) {
       print('Image uploaded successfully');
+      return extractStringFromResponse(await response.stream.bytesToString());
     } else {
       print('Failed to upload image. Error: ${response.reasonPhrase}');
+      throw Exception('Failed to upload image');
     }
-  
   }
 
- 
   String extractStringFromResponse(String jsonResponse) {
     Map<String, dynamic> decodedResponse = jsonDecode(jsonResponse);
     String extractedString = decodedResponse['result'][0]['string'];
-    
+
     return extractedString;
   }
-
 
   Future<ui.Image> get _getImage async {
     final completer = Completer<ui.Image>();

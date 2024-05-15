@@ -88,6 +88,13 @@ class Sketch {
       sides: json['sides'],
     );
   }
+  
+  Offset parsedOffset(Map<String, dynamic> json) {
+    double dx = json['dx'];
+    double dy = json['dy'];
+    return Offset(dx, dy);
+  }
+
 }
 
 //스케치타입 열거형
