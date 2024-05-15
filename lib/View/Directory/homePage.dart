@@ -3,6 +3,7 @@ import 'package:alwrite/View/Directory/naviDrawer.dart';
 import 'package:alwrite/View/drawingPage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -99,6 +100,10 @@ class _HomePageState extends State<HomePage> {
                             : canvascontroller.canvasTitles[index];
                         return GestureDetector(
                           onTap: () {
+                            SharedPreferences.getInstance().then((prefs) {
+                              prefs.setString('title',
+                                  canvascontroller.canvasTitles[index]);
+                            });
                             Get.to(() => DrawingPage(
                                   title: filteredCanvasTitles.isNotEmpty
                                       ? filteredCanvasTitles[index]

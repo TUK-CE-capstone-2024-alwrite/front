@@ -2,14 +2,15 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui';
+import 'package:alwrite/View/drawingPage.dart';
 import 'package:alwrite/main.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Image;
-import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-class DrawingCanvas extends HookWidget {
+class DrawingCanvas extends HookConsumerWidget {
   final double height;
   final double width;
   final ValueNotifier<Color> selectedColor;
@@ -25,8 +26,10 @@ class DrawingCanvas extends HookWidget {
   final ValueNotifier<bool> filled;
   final ValueNotifier<Offset> textOffsetNotifier; //글자 움직일 텍스트
   final List<Widget> textWidgets;
+  final String title;
   const DrawingCanvas({
     Key? key,
+    required this.title,
     required this.textWidgets,
     required this.height,
     required this.width,
@@ -46,7 +49,7 @@ class DrawingCanvas extends HookWidget {
 
   //화면에 여러 그림 겹쳐서 표시하는 위젯.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MouseRegion(
       //마우스 이벤트 감지 후 마우스 커서 변경
       cursor: SystemMouseCursors.precise, //precise 마우스 커서로 변경
@@ -55,10 +58,19 @@ class DrawingCanvas extends HookWidget {
         children: [
           buildAllSketches(context),
           buildCurrentPath(context),
-          ...textWidgets,
+          ..._filterTextWidgetsByTitle(title, ref),
         ],
       ),
     );
+  }
+
+  List<Widget> _filterTextWidgetsByTitle(String title, WidgetRef ref) {
+    return textWidgets.where((widget) {
+      // TextProvider에서 title을 가져와 현재 title과 일치하는지 확인
+      final textProvider = ref.watch(textProviderProvider);
+      final widgetTitle = textProvider.title;
+      return widgetTitle == title;
+    }).toList();
   }
 
   //포인터가 화면에 눌렸을 때의 동작
