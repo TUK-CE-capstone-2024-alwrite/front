@@ -5,12 +5,20 @@ import 'package:alwrite/View/Directory/homePage.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class navidrawer extends StatelessWidget {
-  final textcontroller = TextEditingController();
-  final CategoryController categoryController =
-      Get.put(CategoryController()); // 카테고리 컨트롤러 인스턴스 생성
-  final Canvascontroller canvascontroller = Get.put(Canvascontroller());
+class navidrawer extends StatefulWidget {
   navidrawer({super.key});
+
+  @override
+  State<navidrawer> createState() => _navidrawerState();
+}
+
+class _navidrawerState extends State<navidrawer> {
+  final textcontroller = TextEditingController();
+
+  final CategoryController categoryController = Get.put(CategoryController());
+  // 카테고리 컨트롤러 인스턴스 생성
+  final Canvascontroller canvascontroller = Get.put(Canvascontroller());
+  String searchText = '';
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +36,20 @@ class navidrawer extends StatelessWidget {
           ListTile(
             title: TextField(
               controller: canvascontroller.searchController,
-              onChanged: (value) => canvascontroller.onsearch(value),
+              onChanged: (value) {
+                setState(() {
+                  searchText = value;
+                });
+              },
               decoration: InputDecoration(
-                  hintText: "검색",
-                  hintStyle: TextStyle(fontSize: 16, color: Colors.black),
-                  contentPadding: EdgeInsets.all(10),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Colors.black,
-                  )),
+                hintText: "검색",
+                hintStyle: TextStyle(fontSize: 16, color: Colors.black),
+                contentPadding: EdgeInsets.all(10),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Colors.black,
+                ),
+              ),
             ),
           ),
           SizedBox(height: 14),

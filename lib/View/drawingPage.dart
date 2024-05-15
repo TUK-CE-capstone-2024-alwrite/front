@@ -182,8 +182,9 @@ class _CustomAppBar extends StatelessWidget {
               title,
               style: TextStyle(
                   fontWeight: FontWeight.w400,
-                  fontSize: 25,
-                  color: Colors.white),
+                  fontSize: 27,
+                  color: Colors.white,
+                  letterSpacing: 3),
             ),
             const SizedBox.shrink(),
           ],
