@@ -11,7 +11,6 @@ import 'package:alwrite/View/DrawingCanvas/Widget/palette.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
 import 'package:alwrite/Shared/global.dart';
-import 'package:alwrite/View/DrawingCanvas/Widget/textBox.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -149,25 +148,10 @@ class CanvasSideBar extends HookWidget {
                   tooltip: '원',
                 ),
                 _IconBox(
-                  //ocr
                   iconData: FontAwesomeIcons.wandMagicSparkles,
                   selected: drawingMode.value == DrawingMode.ocr,
-                  onTap: () => drawingMode.value == DrawingMode.ocr,
+                  onTap: () => drawingMode.value = DrawingMode.ocr,
                   tooltip: 'OCR',
-                ),
-                _IconBox(
-                  //image
-                  iconData: FontAwesomeIcons.image,
-                  selected: drawingMode.value == DrawingMode.image,
-                  onTap: () => drawingMode.value == DrawingMode.image,
-                  tooltip: '이미지 삽입',
-                ),
-                _IconBox(
-                  //text
-                  iconData: FontAwesomeIcons.font,
-                  selected: drawingMode.value == DrawingMode.text,
-                  onTap: () => drawingMode.value == DrawingMode.text,
-                  tooltip: '텍스트 모드',
                 ),
               ],
             ),
@@ -204,6 +188,50 @@ class CanvasSideBar extends HookWidget {
                           },
                           label: '${polygonSides.value}',
                           divisions: 5,
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              child: drawingMode.value == DrawingMode.ocr
+                  ? Row(
+                      children: [
+                        TextButton(
+                          child: const Text('텍스트로 변환하기'),
+                          onPressed: () async {
+                            Offset start = undoRedoStack
+                                .value.sketchesNotifier.value.last.points[0];
+                            Offset end = undoRedoStack
+                                .value.sketchesNotifier.value.last.points.last;
+                            Uint8List? pngBytes = await getBytes();
+
+                            img.Image fullScreenImage =
+                                img.decodeImage(pngBytes!)!;
+
+                            int x = start.dx.toInt();
+                            int y = start.dy.toInt();
+                            int width = (end.dx - start.dx).abs().toInt();
+                            int height = (end.dy - start.dy).abs().toInt();
+                            img.Image croppedImage = img.copyCrop(
+                                fullScreenImage,
+                                x: x,
+                                y: y,
+                                width: width,
+                                height: height);
+
+                            undoRedoStack.value.undo();
+                            Uint8List croppedBytes =
+                                Uint8List.fromList(img.encodeJpg(croppedImage));
+                            String getOcrText =
+                                await uploadImageToServer(croppedBytes);
+                            print(getOcrText);
+                            final SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            String title = prefs.getString('title') ?? '';
+                            saveImageUrl(getOcrText, title); // prefer 에 저장하는 부분
+                          },
                         ),
                       ],
                     )
@@ -341,43 +369,6 @@ class CanvasSideBar extends HookWidget {
                   ),
                 ),
               ],
-            ),
-            const Divider(),
-            TextButton(
-              child: const Text('OCR'),
-              onPressed: () async {
-                Offset start =
-                    undoRedoStack.value.sketchesNotifier.value.last.points[0];
-                Offset end =
-                    undoRedoStack.value.sketchesNotifier.value.last.points.last;
-                Uint8List? pngBytes = await getBytes();
-
-                img.Image fullScreenImage = img.decodeImage(pngBytes!)!;
-
-                int x = start.dx.toInt();
-                int y = start.dy.toInt();
-                int width = (end.dx - start.dx).abs().toInt();
-                int height = (end.dy - start.dy).abs().toInt();
-                img.Image croppedImage = img.copyCrop(fullScreenImage,
-                    x: x, y: y, width: width, height: height);
-
-                undoRedoStack.value.undo();
-                Uint8List croppedBytes =
-                    Uint8List.fromList(img.encodeJpg(croppedImage));
-                String getOcrText = await uploadImageToServer(croppedBytes);
-                print(getOcrText);
-                final SharedPreferences prefs =
-                    await SharedPreferences.getInstance();
-                String title = prefs.getString('title') ?? '';
-                saveImageUrl(getOcrText, title); // prefer 에 저장하는 부분
-              },
-            ),
-            const Divider(),
-            TextButton(
-              child: const Text('TEXT MODE'),
-              onPressed: () async {
-                const TextBox();
-              },
             ),
             Center(
               child: GestureDetector(
