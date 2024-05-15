@@ -365,7 +365,7 @@ class CanvasSideBar extends HookWidget {
                     Uint8List.fromList(img.encodeJpg(croppedImage));
                 String getOcrText = await uploadImageToServer(croppedBytes);
                 print(getOcrText);
-                saveImageUrl(getOcrText);
+                saveImageUrl(getOcrText); // prefer 에 저장하는 부분
               },
             ),
             const Divider(),

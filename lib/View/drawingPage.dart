@@ -15,10 +15,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class DrawingPage extends HookWidget {
   final String title; // 제목을 위한 필드 추가
-  final int canvasId; // 캔버스 식별자 추가
 
-  const DrawingPage({Key? key, required this.title, required this.canvasId})
-      : super(key: key);
+  const DrawingPage({
+    Key? key,
+    required this.title,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +67,7 @@ class DrawingPage extends HookWidget {
       Future<void> loadData() async {
         final prefs = await SharedPreferences.getInstance();
         String? sketchesData =
-            prefs.getString('sketches_$canvasId'); // 캔버스별 데이터 불러오기
+            prefs.getString('sketches_$title'); // 캔버스별 데이터 불러오기
         if (sketchesData != null) {
           List<dynamic> sketchesJson = jsonDecode(sketchesData);
           var loadedSketches = sketchesJson
@@ -85,8 +86,7 @@ class DrawingPage extends HookWidget {
         final prefs = await SharedPreferences.getInstance();
         String sketchesData = jsonEncode(
             allSketches.value.map((sketch) => sketch.toJson()).toList());
-        await prefs.setString(
-            'sketches_$canvasId', sketchesData); // 캔버스별 데이터 저장
+        await prefs.setString('sketches_$title', sketchesData); // 캔버스별 데이터 저장
       }
 
       return saveData;
@@ -116,7 +116,10 @@ class DrawingPage extends HookWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Listener(
+          Container(
+            margin:
+                EdgeInsets.only(top: kToolbarHeight), // AppBar 높이만큼 상단 여백 추가
+            child: Listener(
               onPointerDown: (PointerDownEvent event) {
                 // 스타일러스 펜 입력 감지
                 if (event.kind == PointerDeviceKind.touch) {
@@ -151,7 +154,9 @@ class DrawingPage extends HookWidget {
                     textOffsetNotifier: textOffsetNotifier,
                   ),
                 ),
-              )),
+              ),
+            ),
+          ),
           Positioned(
             top: kToolbarHeight + 10,
             // left: -5,
@@ -174,7 +179,9 @@ class DrawingPage extends HookWidget {
               ),
             ),
           ),
-          _CustomAppBar(animationController: animationController),
+          _CustomAppBar(
+              animationController: animationController,
+              title: title), // 제목을 인자로 전달
         ],
       ),
     );
@@ -312,13 +319,17 @@ Widget buildDraggableText(
 
 class _CustomAppBar extends StatelessWidget {
   final AnimationController animationController;
+  final String title; // 캔버스 제목을 위한 변수 추가
 
-  const _CustomAppBar({Key? key, required this.animationController})
+  _CustomAppBar(
+      {Key? key, required this.animationController, required this.title})
       : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
+      // 색상 변경을 위해 container로 수정
+      color: Color.fromARGB(255, 94, 179, 248),
       height: kToolbarHeight,
       width: double.infinity,
       child: Padding(
@@ -337,12 +348,13 @@ class _CustomAppBar extends StatelessWidget {
               },
               icon: const Icon(Icons.menu),
             ),
-            const Text(
-              'ALWRITE',
+            Text(
+              title,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 19,
-              ),
+                  fontWeight: FontWeight.w400,
+                  fontSize: 27,
+                  color: Colors.white,
+                  letterSpacing: 3),
             ),
             IconButton(
               onPressed: () {
