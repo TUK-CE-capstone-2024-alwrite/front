@@ -23,6 +23,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_html/html.dart' as html;
 
 class CanvasSideBar extends HookWidget {
@@ -385,20 +386,20 @@ class CanvasSideBar extends HookWidget {
                 int y = start.dy.toInt();
                 int width = (end.dx - start.dx).abs().toInt();
                 int height = (end.dy - start.dy).abs().toInt();
-                img.Image croppedImage = img.copyCrop(
-                  fullScreenImage,
-                  x: x,
-                  y: y,
-                  width: width,
-                  height: height,
-                );
+
+                img.Image croppedImage = img.copyCrop(fullScreenImage,
+                    x: x, y: y, width: width, height: height);
 
                 undoRedoStack.value.undo();
                 Uint8List croppedBytes =
                     Uint8List.fromList(img.encodeJpg(croppedImage));
                 String getOcrText = await uploadImageToServer(croppedBytes);
                 print(getOcrText);
-                saveImageUrl(getOcrText);
+
+                final SharedPreferences prefs =
+                    await SharedPreferences.getInstance();
+                String title = prefs.getString('title') ?? '';
+                saveImageUrl(getOcrText, title); // prefer 에 저장하는 부분
               },
             ),
             const Divider(),

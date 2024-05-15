@@ -1,25 +1,23 @@
 import 'package:alwrite/View/DrawingCanvas/Model/drawingMode.dart';
 import 'package:flutter/material.dart';
 
-
 // 스케치 클래스
 class Sketch {
-  final List<Offset> points; 
-  final Color color; 
+  final List<Offset> points;
+  final Color color;
   final double size;
-  final SketchType type; 
-  final bool filled; 
-  final int sides; 
+  final SketchType type;
+  final bool filled;
+  final int sides;
 
   Sketch({
-    required this.points, 
+    required this.points,
     this.color = Colors.black,
     this.type = SketchType.scribble,
     this.filled = true,
     this.sides = 3,
     required this.size,
   });
-
 
   factory Sketch.fromDrawingMode(
     Sketch sketch,
