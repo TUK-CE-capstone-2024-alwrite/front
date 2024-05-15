@@ -161,9 +161,8 @@ class _HomePageState extends State<HomePage> {
 
                 Navigator.pop(context);
                 // 새로운 캔버스 페이지로 이동
-                Get.to(() => DrawingPage(
-                      title: titleController.text,
-                    ));
+                // Get.to(() => DrawingPage(
+                //     title: titleController.text, canvasId: newCanvasId));
               }
             },
             child: Text("추가"),
