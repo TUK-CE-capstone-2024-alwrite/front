@@ -335,22 +335,6 @@ class DrawingCanvas extends HookWidget {
     );
   }
 
-  void erase(Offset offset) {
-    const eraseGap = 15;
-
-    for (var oneLine
-        in List<List<Offset>>.from(currentSketch.value?.points ?? [])) {
-      for (var oneDot in oneLine) {
-        if (sqrt(
-              pow((offset.dx - oneDot.dx), 2) + pow((offset.dy - oneDot.dy), 2),
-            ) <
-            eraseGap) {
-          currentSketch.value?.points ?? [].remove(oneLine);
-          break;
-        }
-      }
-    }
-  }
 
   //현재 그림 경로를 그리는 위젯
   Widget buildCurrentPath(BuildContext context) {
@@ -407,6 +391,8 @@ class SketchPainter extends CustomPainter {
         Paint(),
       );
     }
+
+
     for (Sketch sketch in sketches) {
       final points = sketch.points;
       if (points.isEmpty) return;
@@ -498,13 +484,8 @@ class SketchPainter extends CustomPainter {
         paint.strokeWidth = 1.5; // 선의 굵기를 15로 설정
         paint.color = Colors.blue;
         canvas.drawRect(rect, paint);
-        
-      } else if (sketch.type == SketchType.image) {
-        canvas.saveLayer(Rect.largest, Paint());
-        canvas.drawRect(rect, paint);
-        canvas.drawPath(path, Paint()..blendMode);
-        canvas.restore();
-      } else if (sketch.type == SketchType.text) {}
+      }
+      
     }
   }
 

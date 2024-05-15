@@ -51,10 +51,6 @@ class Sketch {
             return SketchType.polygon;
           case DrawingMode.ocr:
             return SketchType.ocr;
-          case DrawingMode.image:
-            return SketchType.image;
-          case DrawingMode.text:
-            return SketchType.text;
           default:
             return SketchType.scribble;
         }
@@ -98,7 +94,7 @@ class Sketch {
 }
 
 //스케치타입 열거형
-enum SketchType { scribble, line, square, circle, polygon, ocr, image, text}
+enum SketchType { scribble, line, square, circle, polygon, ocr}
 
 //스케치타입 확장(객체 문자열을 . 으로 구분후 두번째 해당값 반환)
 extension SketchTypeX on SketchType {
