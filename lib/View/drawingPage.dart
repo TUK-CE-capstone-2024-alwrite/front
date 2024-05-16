@@ -231,6 +231,7 @@ Widget buildDraggableText(
         child: GestureDetector(
           // 길게 누르면 삭제
           onLongPress: () {
+            final textIndex = textPositions.value.keys.toList().indexOf(text);
             showDialog(
               context: context,
               builder: (BuildContext context) {
@@ -240,13 +241,8 @@ Widget buildDraggableText(
                     TextButton(
                       onPressed: () {
                         textPositions.value = Map.from(textPositions.value)
-                          ..remove(text);
-                        SharedPreferences.getInstance().then((prefs) {
-                          final loadedTexts =
-                              prefs.getStringList('texts') ?? [];
-                          prefs.setStringList(
-                              'texts', loadedTexts..remove(text));
-                        });
+                          ..remove('${title},${text}');
+                        deleteImageUrl(textIndex); //shared_preferences에서 텍스트 삭제
                         Navigator.of(context).pop();
                       },
                       child: Text('예'),
