@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
+import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
 import 'package:http/http.dart' as http;
@@ -24,6 +25,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 class CanvasSideBar extends HookWidget {
   final ValueNotifier<Color> selectedColor;
@@ -50,6 +53,23 @@ class CanvasSideBar extends HookWidget {
     required this.polygonSides,
     required this.backgroundImage,
   }) : super(key: key);
+
+  Future<void> saveAsPdf(Uint8List imageData, String fileName) async {
+    //pdf 저장
+    final pdf = pw.Document();
+    final image = pw.MemoryImage(imageData);
+
+    pdf.addPage(pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Center(child: pw.Image(image));
+        }));
+
+    final output = await getExternalStorageDirectory();
+    final file = File("${output!.path}/$fileName.pdf");
+    await file.writeAsBytes(await pdf.save());
+    print('PDF 파일이 저장된 경로: ${file.path}');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -363,8 +383,12 @@ class CanvasSideBar extends HookWidget {
                   child: TextButton(
                     child: const Text('PDF로 내보내기'),
                     onPressed: () async {
-                      Uint8List? pngBytes = await getBytes();
-                      if (pngBytes != null) saveFile(pngBytes, 'pdf');
+                      final Uint8List? pngBytes =
+                          await getBytes(); // 이전에 구현한 getBytes 함수 사용
+                      if (pngBytes != null) {
+                        await saveAsPdf(pngBytes,
+                            'Alwrite-${DateTime.now().toIso8601String()}');
+                      }
                     },
                   ),
                 ),
