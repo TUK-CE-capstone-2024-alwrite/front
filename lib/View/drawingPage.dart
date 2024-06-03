@@ -19,7 +19,7 @@ final textProviderProvider = ChangeNotifierProvider<TextProvider>((ref) {
   return TextProvider(
     textWidgets: [],
     textPositions: ValueNotifier<Map<String, Offset>>({}),
-    fontSize: 30.0,
+    fontSize: ValueNotifier<double>(30.0),
     title: '',
   );
 });
@@ -75,6 +75,7 @@ class DrawingPage extends HookConsumerWidget {
           textWidgets.removeWhere((widget) => widget == null);
 
           textProvider.setTextWidgets(textWidgets);
+          //prefs.remove('texts');
         }
 
         Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -217,7 +218,7 @@ class DrawingPage extends HookConsumerWidget {
 Widget buildDraggableText(
   String title,
   BuildContext context,
-  double fontSize,
+  ValueNotifier<double> fontSize,
   String text,
   ValueNotifier<Map<String, Offset>> textPositions,
   Offset initialPosition,
@@ -231,6 +232,7 @@ Widget buildDraggableText(
         child: GestureDetector(
           // 길게 누르면 삭제
           onLongPress: () {
+            final textIndex = textPositions.value.keys.toList().indexOf(text);
             showDialog(
               context: context,
               builder: (BuildContext context) {
@@ -240,13 +242,8 @@ Widget buildDraggableText(
                     TextButton(
                       onPressed: () {
                         textPositions.value = Map.from(textPositions.value)
-                          ..remove(text);
-                        SharedPreferences.getInstance().then((prefs) {
-                          final loadedTexts =
-                              prefs.getStringList('texts') ?? [];
-                          prefs.setStringList(
-                              'texts', loadedTexts..remove(text));
-                        });
+                          ..remove('${title},${text}');
+                        deleteImageUrl(textIndex); //shared_preferences에서 텍스트 삭제
                         Navigator.of(context).pop();
                       },
                       child: Text('예'),
@@ -285,16 +282,16 @@ Widget buildDraggableText(
                             },
                           ),
                           Slider(
-                            value: fontSize,
+                            value: fontSize.value,
                             min: 1,
                             max: 100,
                             onChanged: (newFontSize) {
                               setState(() {
-                                fontSize = newFontSize;
+                                fontSize.value = newFontSize;
                               });
                             },
                             divisions: 40,
-                            label: fontSize.round().toString(),
+                            label: fontSize.value.round().toString(),
                           ),
                         ],
                       ),
@@ -334,7 +331,7 @@ Widget buildDraggableText(
             },
             child: Text(
               text,
-              style: TextStyle(fontSize: fontSize, color: Colors.black),
+              style: TextStyle(fontSize: fontSize.value, color: Colors.black),
             ), // 기본 텍스트
           ),
         ),
@@ -355,7 +352,7 @@ class _CustomAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       // 색상 변경을 위해 container로 수정
-      color: Color.fromARGB(255, 94, 179, 248),
+      color: Colors.white,
       height: kToolbarHeight,
       width: double.infinity,
       child: Padding(
@@ -379,7 +376,7 @@ class _CustomAppBar extends StatelessWidget {
               style: TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: 27,
-                  color: Colors.white,
+                  color: Colors.black,
                   letterSpacing: 3),
             ),
             IconButton(
