@@ -46,29 +46,39 @@ class DrawingPage extends HookConsumerWidget {
 
     useEffect(
       () {
+        Future<void> load() async {
+          final prefs = await SharedPreferences.getInstance();
+
+          final loadedTexts = prefs.getStringList('texts') ?? [];
+          final textWidgets =
+              loadedTexts.where((loadText) => loadText != '').map((loadText) {
+            final parts = loadText.split(',');
+            final text = parts[1];
+            final currentTitle = parts[0];
+            // 텍스트 위치가 없으면 초기 위치(중앙)으로 설정
+            textProvider.setTitle(currentTitle);
+            textProvider.setTextPositions(ValueNotifier<Map<String, Offset>>({
+              ...textProvider.textPositions.value,
+              text: textProvider.textPositions.value[text] ?? initialOffset,
+            }),);
+            return buildDraggableText(
+              textProvider.title,
+              context,
+              textProvider.fontSize,
+              text,
+              textProvider.textPositions,
+              textProvider.textPositions.value[text]!,
+            );
+          }).toList();
+
+          // 위젯 목록에 null 값이 있는지 확인 후 제거
+          textWidgets.removeWhere((widget) => widget == null);
+
+          textProvider.setTextWidgets(textWidgets);
+        }
+
         Timer.periodic(const Duration(seconds: 1), (timer) {
-          SharedPreferences.getInstance().then((prefs) {
-            final loadedTexts = prefs.getStringList('texts') ?? [];
-            final textWidgets = loadedTexts.map((loadText) {
-              final parts = loadText.split(',');
-              final text = parts[1];
-              final currentTitle = parts[0];
-              // 텍스트 위치가 없으면 초기 위치(중앙)으로 설정
-              textProvider.setTitle(currentTitle);
-              textProvider.setTextPositions(ValueNotifier<Map<String, Offset>>({
-                ...textProvider.textPositions.value,
-                text: textProvider.textPositions.value[text] ?? initialOffset,
-              }));
-              return buildDraggableText(
-                context,
-                textProvider.fontSize,
-                text,
-                textProvider.textPositions,
-                textProvider.textPositions.value[text]!,
-              );
-            }).toList();
-            textProvider.setTextWidgets(textWidgets);
-          });
+          load();
         });
         // clean-up 함수로 빈 함수를 반환
         return () => {};
@@ -92,18 +102,18 @@ class DrawingPage extends HookConsumerWidget {
 
       loadData();
       return () => {};
-    }, const []);
+    }, const [],);
 
     useEffect(() {
       Future<void> saveData() async {
         final prefs = await SharedPreferences.getInstance();
         String sketchesData = jsonEncode(
-            allSketches.value.map((sketch) => sketch.toJson()).toList());
+            allSketches.value.map((sketch) => sketch.toJson()).toList(),);
         await prefs.setString('sketches_$title', sketchesData); // 캔버스별 데이터 저장
       }
 
       return saveData;
-    }, [allSketches.value]);
+    }, [allSketches.value],);
 
     final selectedColor = useState(Colors.black);
     final strokeSize = useState<double>(10);
@@ -131,7 +141,7 @@ class DrawingPage extends HookConsumerWidget {
         children: [
           Container(
             margin:
-                EdgeInsets.only(top: kToolbarHeight), // AppBar 높이만큼 상단 여백 추가
+                const EdgeInsets.only(top: kToolbarHeight), // AppBar 높이만큼 상단 여백 추가
             child: Listener(
               onPointerDown: (PointerDownEvent event) {
                 // 스타일러스 펜 입력 감지
@@ -195,7 +205,7 @@ class DrawingPage extends HookConsumerWidget {
           ),
           _CustomAppBar(
               animationController: animationController,
-              title: title), // 제목을 인자로 전달
+              title: title,), // 제목을 인자로 전달
         ],
       ),
     );
@@ -205,6 +215,7 @@ class DrawingPage extends HookConsumerWidget {
 //드래그 가능한 텍스트 위젯 생성  (텍스트, 폰트사이즈, 위치, 초기위치)
 // 폰트 사이즈 변수로 되어 있는 것처럼 폰트도 똑같이 적용하면 될듯?
 Widget buildDraggableText(
+  String title,
   BuildContext context,
   double fontSize,
   String text,
@@ -220,31 +231,27 @@ Widget buildDraggableText(
         child: GestureDetector(
           // 길게 누르면 삭제
           onLongPress: () {
+            final textIndex = textPositions.value.keys.toList().indexOf(text);
             showDialog(
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: Text('삭제하시겠습니까?'),
+                  title: const Text('삭제하시겠습니까?'),
                   actions: [
                     TextButton(
                       onPressed: () {
                         textPositions.value = Map.from(textPositions.value)
-                          ..remove(text);
-                        SharedPreferences.getInstance().then((prefs) {
-                          final loadedTexts =
-                              prefs.getStringList('texts') ?? [];
-                          prefs.setStringList(
-                              'texts', loadedTexts..remove(text));
-                        });
+                          ..remove('$title,$text');
+                        deleteImageUrl(textIndex); //shared_preferences에서 텍스트 삭제
                         Navigator.of(context).pop();
                       },
-                      child: Text('예'),
+                      child: const Text('예'),
                     ),
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
-                      child: Text('아니요'),
+                      child: const Text('아니요'),
                     ),
                   ],
                 );
@@ -262,12 +269,12 @@ Widget buildDraggableText(
                 return StatefulBuilder(
                   builder: (context, setState) {
                     return AlertDialog(
-                      title: Text('텍스트 설정'),
+                      title: const Text('텍스트 설정'),
                       content: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           TextField(
-                            decoration: InputDecoration(labelText: '텍스트'),
+                            decoration: const InputDecoration(labelText: '텍스트'),
                             controller: TextEditingController(text: text),
                             onChanged: (newText) {
                               text = newText;
@@ -296,10 +303,11 @@ Widget buildDraggableText(
                             updateImageUrl(
                               text,
                               textIndex,
+                              title,
                             ); //shared_preferences에 저장된 텍스트 업데이트
                             Navigator.of(context).pop();
                           },
-                          child: Text('확인'),
+                          child: const Text('확인'),
                         ),
                       ],
                     );
@@ -311,14 +319,14 @@ Widget buildDraggableText(
           child: Draggable(
             feedback: Text(
               text,
-              style: TextStyle(fontSize: 20, color: Colors.black),
+              style: const TextStyle(fontSize: 20, color: Colors.black),
             ), // 드래그할 때 보여질 텍스트
             childWhenDragging: Container(), // 드래그 중일 때 원래 위치에 보여질 내용
             onDragEnd: (details) {
               // 드래그 끝나면 위치 업데이트
               textPositions.value = Map.from(textPositions.value)
                 ..update(text, (value) => details.offset,
-                    ifAbsent: () => details.offset);
+                    ifAbsent: () => details.offset,);
             },
             child: Text(
               text,
@@ -335,15 +343,15 @@ class _CustomAppBar extends StatelessWidget {
   final AnimationController animationController;
   final String title; // 캔버스 제목을 위한 변수 추가
 
-  _CustomAppBar(
-      {Key? key, required this.animationController, required this.title})
+  const _CustomAppBar(
+      {Key? key, required this.animationController, required this.title,})
       : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       // 색상 변경을 위해 container로 수정
-      color: Color.fromARGB(255, 94, 179, 248),
+      color: const Color.fromARGB(255, 94, 179, 248),
       height: kToolbarHeight,
       width: double.infinity,
       child: Padding(
@@ -364,11 +372,11 @@ class _CustomAppBar extends StatelessWidget {
             ),
             Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: 27,
                   color: Colors.white,
-                  letterSpacing: 3),
+                  letterSpacing: 3,),
             ),
             IconButton(
               onPressed: () {

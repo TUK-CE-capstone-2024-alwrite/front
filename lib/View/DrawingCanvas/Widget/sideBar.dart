@@ -219,7 +219,7 @@ class CanvasSideBar extends HookWidget {
                                 x: x,
                                 y: y,
                                 width: width,
-                                height: height);
+                                height: height,);
 
                             undoRedoStack.value.undo();
                             Uint8List croppedBytes =
@@ -314,7 +314,7 @@ class CanvasSideBar extends HookWidget {
                     child: const Text('전체 지우기'),
                     onPressed: () {
                       undoRedoStack.value.clear();
-                    }),
+                    },),
                 TextButton(
                   onPressed: () async {
                     if (backgroundImage.value != null) {
