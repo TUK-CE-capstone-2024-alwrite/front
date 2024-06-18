@@ -19,7 +19,7 @@ final textProviderProvider = ChangeNotifierProvider<TextProvider>((ref) {
   return TextProvider(
     textWidgets: [],
     textPositions: ValueNotifier<Map<String, Offset>>({}),
-    fontSize: 30.0,
+    fontSize: ValueNotifier<double>(30.0),
     title: '',
   );
 });
@@ -75,6 +75,7 @@ class DrawingPage extends HookConsumerWidget {
           textWidgets.removeWhere((widget) => widget == null);
 
           textProvider.setTextWidgets(textWidgets);
+          // prefs.remove('texts');
         }
 
         Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -217,7 +218,7 @@ class DrawingPage extends HookConsumerWidget {
 Widget buildDraggableText(
   String title,
   BuildContext context,
-  double fontSize,
+  ValueNotifier<double> fontSize,
   String text,
   ValueNotifier<Map<String, Offset>> textPositions,
   Offset initialPosition,
@@ -240,9 +241,13 @@ Widget buildDraggableText(
                   actions: [
                     TextButton(
                       onPressed: () {
-                        textPositions.value = Map.from(textPositions.value)
-                          ..remove('${title},${text}');
-                        deleteImageUrl(textIndex); //shared_preferences에서 텍스트 삭제
+                        final updatedTexts =
+                            List.from(textPositions.value.keys);
+                        updatedTexts.remove(text);
+                        textPositions.value = {
+                          for (var t in updatedTexts) t: textPositions.value[t]!
+                        };
+                        deleteImageUrl(text);
                         Navigator.of(context).pop();
                       },
                       child: Text('예'),
@@ -260,7 +265,6 @@ Widget buildDraggableText(
           },
           // 누르면 텍스트, 폰트 사이즈 수정
           onTap: () {
-            final textIndex = textPositions.value.keys.toList().indexOf(text);
             final firstText = text;
             final textOffset = textPositions.value[text]!;
             showDialog(
@@ -281,16 +285,16 @@ Widget buildDraggableText(
                             },
                           ),
                           Slider(
-                            value: fontSize,
+                            value: fontSize.value,
                             min: 1,
                             max: 100,
                             onChanged: (newFontSize) {
                               setState(() {
-                                fontSize = newFontSize;
+                                fontSize.value = newFontSize;
                               });
                             },
                             divisions: 40,
-                            label: fontSize.round().toString(),
+                            label: fontSize.value.round().toString(),
                           ),
                         ],
                       ),
@@ -302,12 +306,18 @@ Widget buildDraggableText(
                             textPositions.value[text] = textOffset;
                             updateImageUrl(
                               text,
-                              textIndex,
+                              firstText, // 변경 전 텍스트를 함께 전달
                               title,
                             ); //shared_preferences에 저장된 텍스트 업데이트
                             Navigator.of(context).pop();
                           },
                           child: Text('확인'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text('취소'),
                         ),
                       ],
                     );
@@ -330,7 +340,7 @@ Widget buildDraggableText(
             },
             child: Text(
               text,
-              style: TextStyle(fontSize: fontSize, color: Colors.black),
+              style: TextStyle(fontSize: fontSize.value, color: Colors.black),
             ), // 기본 텍스트
           ),
         ),
@@ -351,7 +361,7 @@ class _CustomAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       // 색상 변경을 위해 container로 수정
-      color: Color.fromARGB(255, 94, 179, 248),
+      color: Colors.white,
       height: kToolbarHeight,
       width: double.infinity,
       child: Padding(
@@ -375,7 +385,7 @@ class _CustomAppBar extends StatelessWidget {
               style: TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: 27,
-                  color: Colors.white,
+                  color: Colors.black,
                   letterSpacing: 3),
             ),
             IconButton(

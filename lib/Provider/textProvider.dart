@@ -6,7 +6,7 @@ class TextProvider extends ChangeNotifier {
   TextProvider({
     required List<Widget> textWidgets,
     required ValueNotifier<Map<String, Offset>> textPositions,
-    required double fontSize,
+    required ValueNotifier<double> fontSize,
     required String title,
   }) : _textState = TextState(
           textWidgets: textWidgets,
@@ -19,7 +19,7 @@ class TextProvider extends ChangeNotifier {
   List<Widget> get textWidgets => _textState.textWidgets;
   ValueNotifier<Map<String, Offset>> get textPositions =>
       _textState.textPositions;
-  double get fontSize => _textState.fontSize;
+  ValueNotifier<double> get fontSize => _textState.fontSize;
   String get title => _textState.title;
 
   void setTextWidgets(List<Widget> textWidgets) {
@@ -32,7 +32,7 @@ class TextProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setFontSize(double fontSize) {
+  void setFontSize(ValueNotifier<double> fontSize) {
     _textState.fontSize = fontSize;
     notifyListeners();
   }
@@ -46,7 +46,7 @@ class TextProvider extends ChangeNotifier {
 class TextState {
   List<Widget> textWidgets;
   ValueNotifier<Map<String, Offset>> textPositions;
-  double fontSize;
+  ValueNotifier<double> fontSize;
   String title;
 
   TextState({
