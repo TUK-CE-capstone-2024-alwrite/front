@@ -234,6 +234,7 @@ Widget buildDraggableText(
         child: GestureDetector(
           // 길게 누르면 삭제
           onLongPress: () {
+            final textIndex = textPositions.value.keys.toList().indexOf(text);
             showDialog(
               context: context,
               builder: (BuildContext context) {
