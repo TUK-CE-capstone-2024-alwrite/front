@@ -1,9 +1,1 @@
-enum DrawingMode {
-  pencil,
-  line,
-  eraser,
-  square,
-  circle,
-  polygon,
-  ocr,
-}
+enum DrawingMode { pencil, line, eraser, square, circle, polygon, ocr, picture }

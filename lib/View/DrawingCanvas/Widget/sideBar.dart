@@ -173,6 +173,29 @@ class CanvasSideBar extends HookWidget {
                   onTap: () => drawingMode.value = DrawingMode.ocr,
                   tooltip: 'OCR',
                 ),
+                _IconBox(
+                  iconData: FontAwesomeIcons.image,
+                  selected: drawingMode.value == DrawingMode.picture,
+                  onTap: () async {
+                    drawingMode.value = DrawingMode.picture;
+                    print('이미지 삽입 클릭됨');
+                    try {
+                      final ui.Image? image = await _getImage;
+                      if (image != null) {
+                        backgroundImage.value = image;
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('이미지가 선택되지 않았습니다.')),
+                        );
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다: $e')),
+                      );
+                    }
+                  },
+                  tooltip: '이미지 삽입',
+                )
               ],
             ),
             const SizedBox(height: 8),
@@ -337,16 +360,35 @@ class CanvasSideBar extends HookWidget {
                     }),
                 TextButton(
                   onPressed: () async {
-                    if (backgroundImage.value != null) {
-                      backgroundImage.value = null;
-                    } else {
-                      backgroundImage.value = await _getImage;
+                    try {
+                      if (backgroundImage.value != null) {
+                        backgroundImage.value = null;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('배경 이미지가 제거되었습니다.')),
+                        );
+                      } else {
+                        final ui.Image? image = await _getImage;
+                        if (image != null) {
+                          backgroundImage.value = image;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('배경 이미지가 삽입되었습니다.')),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('이미지가 선택되지 않았습니다.')),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다: $e')),
+                      );
                     }
                   },
                   child: Text(
                     backgroundImage.value == null ? '배경 삽입' : '이미지 제거',
                   ),
-                ),
+                )
               ],
             ),
             const SizedBox(height: 20),
