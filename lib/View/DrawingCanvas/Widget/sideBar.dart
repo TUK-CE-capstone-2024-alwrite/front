@@ -71,6 +71,49 @@ class CanvasSideBar extends HookWidget {
     print('PDF 파일이 저장된 경로: ${file.path}');
   }
 
+  void _showImageSourcePopupMenu(BuildContext context) async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero),
+            ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    final result = await showMenu(
+      context: context,
+      position: position,
+      items: [
+        PopupMenuItem(
+          child: const Text('카메라로 가져오기'),
+          value: 'camera',
+        ),
+        PopupMenuItem(
+          child: const Text('앨범에서 가져오기'),
+          value: 'gallery',
+        ),
+      ],
+    );
+
+    if (result == 'camera') {
+      _getImageFromCamera();
+    } else if (result == 'gallery') {
+      _getImageFromGallery();
+    }
+  }
+
+  Future<void> _getImageFromCamera() async {
+    final image = await ImagePicker().pickImage(source: ImageSource.camera);
+  }
+
+  Future<void> _getImageFromGallery() async {
+    final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+  }
+
   @override
   Widget build(BuildContext context) {
     //undo를 위한 stack
@@ -176,23 +219,10 @@ class CanvasSideBar extends HookWidget {
                 _IconBox(
                   iconData: FontAwesomeIcons.image,
                   selected: drawingMode.value == DrawingMode.picture,
-                  onTap: () async {
+                  onTap: () {
                     drawingMode.value = DrawingMode.picture;
                     print('이미지 삽입 클릭됨');
-                    try {
-                      final ui.Image? image = await _getImage;
-                      if (image != null) {
-                        backgroundImage.value = image;
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('이미지가 선택되지 않았습니다.')),
-                        );
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('이미지 선택 중 오류가 발생했습니다: $e')),
-                      );
-                    }
+                    _showImageSourcePopupMenu(context);
                   },
                   tooltip: '이미지 삽입',
                 )
