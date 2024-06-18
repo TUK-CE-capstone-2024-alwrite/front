@@ -41,6 +41,25 @@ class TextProvider extends ChangeNotifier {
     _textState.title = title;
     notifyListeners();
   }
+
+  void updateTextPosition(String text, Offset newOffset) {
+    _textState.textPositions.value = Map.from(textPositions.value)
+      ..update(text, (_) => newOffset, ifAbsent: () => newOffset);
+    notifyListeners();
+  }
+
+  void updateText(String oldText, String newText, Offset offset) {
+    _textState.textPositions.value = Map.from(textPositions.value)
+      ..remove(oldText)
+      ..update(newText, (_) => offset, ifAbsent: () => offset);
+    notifyListeners();
+  }
+
+  void addTextWithPosition(String text, Offset position) {
+    _textState.textPositions.value = Map.from(textPositions.value)
+      ..putIfAbsent(text, () => position);
+    notifyListeners();
+  }
 }
 
 class TextState {

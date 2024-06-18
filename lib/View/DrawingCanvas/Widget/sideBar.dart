@@ -4,6 +4,8 @@ import 'dart:io' as io;
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
+import 'package:alwrite/View/drawingPage.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image/image.dart' as img;
@@ -28,7 +30,7 @@ import 'package:universal_html/html.dart' as html;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-class CanvasSideBar extends HookWidget {
+class CanvasSideBar extends HookConsumerWidget {
   final ValueNotifier<Color> selectedColor;
   final ValueNotifier<double> strokeSize;
   final ValueNotifier<double> eraserSize;
@@ -72,7 +74,7 @@ class CanvasSideBar extends HookWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     //undo를 위한 stack
     final undoRedoStack = useState(
       _UndoRedoStack(
@@ -251,6 +253,13 @@ class CanvasSideBar extends HookWidget {
                                 await SharedPreferences.getInstance();
                             String title = prefs.getString('title') ?? '';
                             saveImageUrl(getOcrText, title); // prefer 에 저장하는 부분
+
+                            final textProvider =
+                                ref.watch(textProviderProvider);
+                            textProvider.addTextWithPosition(getOcrText, start);
+
+                            undoRedoStack.value
+                                .deleteSketchesInBounds(start, end);
                           },
                         ),
                       ],
@@ -617,6 +626,14 @@ class _UndoRedoStack {
     _canRedo.value = _redoStack.isNotEmpty;
     _sketchCount++;
     sketchesNotifier.value = [...sketchesNotifier.value, sketch];
+  }
+
+  void deleteSketchesInBounds(Offset start, Offset end) {
+    final sketches = List<Sketch>.from(sketchesNotifier.value);
+    sketches.removeWhere((sketch) => sketch.isInBounds(start, end));
+    sketchesNotifier.value = sketches;
+    _sketchCount = sketches.length;
+    _canRedo.value = false; // 스케치를 삭제한 후 redo stack을 초기화할 필요가 있을 경우
   }
 
   //배경삭제함수

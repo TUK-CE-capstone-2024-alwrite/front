@@ -62,6 +62,7 @@ class DrawingPage extends HookConsumerWidget {
               text: textProvider.textPositions.value[text] ?? initialOffset,
             }));
             return buildDraggableText(
+              textProvider,
               textProvider.title,
               context,
               textProvider.fontSize,
@@ -216,6 +217,7 @@ class DrawingPage extends HookConsumerWidget {
 //드래그 가능한 텍스트 위젯 생성  (텍스트, 폰트사이즈, 위치, 초기위치)
 // 폰트 사이즈 변수로 되어 있는 것처럼 폰트도 똑같이 적용하면 될듯?
 Widget buildDraggableText(
+  TextProvider textProvider,
   String title,
   BuildContext context,
   ValueNotifier<double> fontSize,
@@ -240,12 +242,18 @@ Widget buildDraggableText(
                   actions: [
                     TextButton(
                       onPressed: () {
-                        final updatedTexts =
-                            List.from(textPositions.value.keys);
-                        updatedTexts.remove(text);
-                        textPositions.value = {
-                          for (var t in updatedTexts) t: textPositions.value[t]!
-                        };
+                        // final updatedTexts =
+                        //     List.from(textPositions.value.keys);
+                        // updatedTexts.remove(text);
+                        // textPositions.value = {
+                        //   for (var t in updatedTexts) t: textPositions.value[t]!
+                        // };
+                        textProvider.setTextPositions(
+                          ValueNotifier<Map<String, Offset>>({
+                            for (var t in textPositions.value.keys)
+                              if (t != text) t: textPositions.value[t]!
+                          }),
+                        );
                         deleteImageUrl(text);
                         Navigator.of(context).pop();
                       },
@@ -300,9 +308,13 @@ Widget buildDraggableText(
                       actions: [
                         TextButton(
                           onPressed: () {
-                            textPositions.value = Map.from(textPositions.value)
-                              ..remove(firstText);
-                            textPositions.value[text] = textOffset;
+                            textProvider.updateText(
+                                firstText, text, textOffset);
+                            // textPositions.value = Map.from(textPositions.value)
+                            //   ..remove(firstText)
+                            //   ..update(text, (value) => textOffset,
+                            //       ifAbsent: () => textOffset);
+                            // textPositions.value[text] = textOffset;
                             updateImageUrl(
                               text,
                               firstText, // 변경 전 텍스트를 함께 전달
