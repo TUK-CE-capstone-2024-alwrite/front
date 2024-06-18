@@ -75,7 +75,7 @@ class DrawingPage extends HookConsumerWidget {
           textWidgets.removeWhere((widget) => widget == null);
 
           textProvider.setTextWidgets(textWidgets);
-          //prefs.remove('texts');
+          // prefs.remove('texts');
         }
 
         Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -232,7 +232,6 @@ Widget buildDraggableText(
         child: GestureDetector(
           // 길게 누르면 삭제
           onLongPress: () {
-            final textIndex = textPositions.value.keys.toList().indexOf(text);
             showDialog(
               context: context,
               builder: (BuildContext context) {
@@ -241,9 +240,13 @@ Widget buildDraggableText(
                   actions: [
                     TextButton(
                       onPressed: () {
-                        textPositions.value = Map.from(textPositions.value)
-                          ..remove('${title},${text}');
-                        deleteImageUrl(textIndex); //shared_preferences에서 텍스트 삭제
+                        final updatedTexts =
+                            List.from(textPositions.value.keys);
+                        updatedTexts.remove(text);
+                        textPositions.value = {
+                          for (var t in updatedTexts) t: textPositions.value[t]!
+                        };
+                        deleteImageUrl(text);
                         Navigator.of(context).pop();
                       },
                       child: Text('예'),
@@ -261,7 +264,6 @@ Widget buildDraggableText(
           },
           // 누르면 텍스트, 폰트 사이즈 수정
           onTap: () {
-            final textIndex = textPositions.value.keys.toList().indexOf(text);
             final firstText = text;
             final textOffset = textPositions.value[text]!;
             showDialog(
@@ -303,12 +305,18 @@ Widget buildDraggableText(
                             textPositions.value[text] = textOffset;
                             updateImageUrl(
                               text,
-                              textIndex,
+                              firstText, // 변경 전 텍스트를 함께 전달
                               title,
                             ); //shared_preferences에 저장된 텍스트 업데이트
                             Navigator.of(context).pop();
                           },
                           child: Text('확인'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text('취소'),
                         ),
                       ],
                     );
