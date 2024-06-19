@@ -104,18 +104,18 @@ class DrawingPage extends HookConsumerWidget {
 
       loadData();
       return () => {};
-    }, const []);
+    }, const [],);
 
     useEffect(() {
       Future<void> saveData() async {
         final prefs = await SharedPreferences.getInstance();
         String sketchesData = jsonEncode(
-            allSketches.value.map((sketch) => sketch.toJson()).toList());
+            allSketches.value.map((sketch) => sketch.toJson()).toList(),);
         await prefs.setString('sketches_$title', sketchesData); // 캔버스별 데이터 저장
       }
 
       return saveData;
-    }, [allSketches.value]);
+    }, [allSketches.value],);
 
     final selectedColor = useState(Colors.black);
     final strokeSize = useState<double>(10);
@@ -143,7 +143,7 @@ class DrawingPage extends HookConsumerWidget {
         children: [
           Container(
             margin:
-                EdgeInsets.only(top: kToolbarHeight), // AppBar 높이만큼 상단 여백 추가
+                const EdgeInsets.only(top: kToolbarHeight), // AppBar 높이만큼 상단 여백 추가
             child: Listener(
               onPointerDown: (PointerDownEvent event) {
                 // 스타일러스 펜 입력 감지
@@ -207,7 +207,7 @@ class DrawingPage extends HookConsumerWidget {
           ),
           _CustomAppBar(
               animationController: animationController,
-              title: title), // 제목을 인자로 전달
+              title: title,), // 제목을 인자로 전달
         ],
       ),
     );
@@ -239,7 +239,7 @@ Widget buildDraggableText(
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: Text('삭제하시겠습니까?'),
+                  title: const Text('삭제하시겠습니까?'),
                   actions: [
                     TextButton(
                       onPressed: () {
@@ -258,13 +258,13 @@ Widget buildDraggableText(
                         deleteImageUrl(text);
                         Navigator.of(context).pop();
                       },
-                      child: Text('예'),
+                      child: const Text('예'),
                     ),
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
-                      child: Text('아니요'),
+                      child: const Text('아니요'),
                     ),
                   ],
                 );
@@ -281,12 +281,12 @@ Widget buildDraggableText(
                 return StatefulBuilder(
                   builder: (context, setState) {
                     return AlertDialog(
-                      title: Text('텍스트 설정'),
+                      title: const Text('텍스트 설정'),
                       content: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           TextField(
-                            decoration: InputDecoration(labelText: '텍스트'),
+                            decoration: const InputDecoration(labelText: '텍스트'),
                             controller: TextEditingController(text: text),
                             onChanged: (newText) {
                               text = newText;
@@ -323,7 +323,13 @@ Widget buildDraggableText(
                             ); //shared_preferences에 저장된 텍스트 업데이트
                             Navigator.of(context).pop();
                           },
-                          child: Text('확인'),
+                          child: const Text('확인'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('취소'),
                         ),
                         TextButton(
                           onPressed: () {
@@ -341,14 +347,14 @@ Widget buildDraggableText(
           child: Draggable(
             feedback: Text(
               text,
-              style: TextStyle(fontSize: 20, color: Colors.black),
+              style: const TextStyle(fontSize: 20, color: Colors.black),
             ), // 드래그할 때 보여질 텍스트
             childWhenDragging: Container(), // 드래그 중일 때 원래 위치에 보여질 내용
             onDragEnd: (details) {
               // 드래그 끝나면 위치 업데이트
               textPositions.value = Map.from(textPositions.value)
                 ..update(text, (value) => details.offset,
-                    ifAbsent: () => details.offset);
+                    ifAbsent: () => details.offset,);
             },
             child: Text(
               text,
@@ -365,8 +371,8 @@ class _CustomAppBar extends StatelessWidget {
   final AnimationController animationController;
   final String title; // 캔버스 제목을 위한 변수 추가
 
-  _CustomAppBar(
-      {Key? key, required this.animationController, required this.title})
+  const _CustomAppBar(
+      {Key? key, required this.animationController, required this.title,})
       : super(key: key);
 
   @override
@@ -394,7 +400,7 @@ class _CustomAppBar extends StatelessWidget {
             ),
             Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: 27,
                   color: Colors.black,
