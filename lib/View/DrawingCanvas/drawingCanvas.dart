@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'dart:ui';
@@ -9,6 +10,7 @@ import 'package:alwrite/View/DrawingCanvas/Model/sketch.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Image;
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 class DrawingCanvas extends HookConsumerWidget {
   final double height;
@@ -27,8 +29,10 @@ class DrawingCanvas extends HookConsumerWidget {
   final ValueNotifier<Offset> textOffsetNotifier; //글자 움직일 텍스트
   final List<Widget> textWidgets;
   final String title;
+  final String pdfName;
   const DrawingCanvas({
     Key? key,
+    required this.pdfName,
     required this.title,
     required this.textWidgets,
     required this.height,
@@ -56,6 +60,7 @@ class DrawingCanvas extends HookConsumerWidget {
       child: Stack(
         //여러 위젯을 겹쳐서 표시할 수 있는 위젯임
         children: [
+          pdf(pdfName, ref),
           buildAllSketches(context),
           buildCurrentPath(context),
           ..._filterTextWidgetsByTitle(title, ref),
@@ -71,6 +76,13 @@ class DrawingCanvas extends HookConsumerWidget {
       final widgetTitle = textProvider.title;
       return widgetTitle == title;
     }).toList();
+  }
+
+  Widget pdf(String pdfName, WidgetRef ref) {
+    if (pdfName != '') {
+      return SfPdfViewer.file(File(pdfName));
+    }
+    return Container();
   }
 
   //포인터가 화면에 눌렸을 때의 동작
@@ -152,7 +164,7 @@ class DrawingCanvas extends HookConsumerWidget {
   Widget buildAllSketches(BuildContext context) {
     return SizedBox(
       height: height,
-      width: width,
+      width: width / 100 * 90,
       child: ValueListenableBuilder<List<Sketch>>(
         //allSketches값 감시, 값이 변경될때마다 화면을 다시 그림
         valueListenable: allSketches,
@@ -162,8 +174,9 @@ class DrawingCanvas extends HookConsumerWidget {
             key: canvasGlobalKey, // 자식위젯의 상태를 관리하는 키
             child: Container(
               height: height,
-              width: width,
-              color: kCanvasColor,
+              width: width / 100 * 80,
+              color:
+                  pdfName != '' ? kCanvasColor.withOpacity(0.3) : kCanvasColor,
               child: CustomPaint(
                 painter: SketchPainter(
                   sketches: sketches,
@@ -190,7 +203,7 @@ class DrawingCanvas extends HookConsumerWidget {
           return RepaintBoundary(
             child: SizedBox(
               height: height,
-              width: width,
+              width: width / 100 * 90,
               child: CustomPaint(
                 painter: SketchPainter(
                   sketches: sketch == null ? [] : [sketch],

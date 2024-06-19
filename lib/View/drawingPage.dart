@@ -26,12 +26,13 @@ final textProviderProvider = ChangeNotifierProvider<TextProvider>((ref) {
 
 class DrawingPage extends HookConsumerWidget {
   final String title; // 제목을 위한 필드 추가
+  final String pdfName;
 
   const DrawingPage({
     Key? key,
     required this.title,
+    required this.pdfName,
   }) : super(key: key);
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enablePan = useState<bool>(false); // 초기 팬 활성화 상태는 false
@@ -156,31 +157,61 @@ class DrawingPage extends HookConsumerWidget {
                     false; // 포인터가 화면에서 떼어질 때 panEnabled를 false로 설정
               },
               child: InteractiveViewer(
-                panEnabled: enablePan.value,
-                child: Container(
-                  color: kCanvasColor,
-                  width: double.maxFinite,
-                  height: double.maxFinite,
-                  child: DrawingCanvas(
-                    title: title,
-                    textWidgets: textProvider.textWidgets,
-                    width: MediaQuery.of(context).size.width,
-                    height: MediaQuery.of(context).size.height,
-                    drawingMode: drawingMode,
-                    selectedColor: selectedColor,
-                    strokeSize: strokeSize,
-                    eraserSize: eraserSize,
-                    sideBarController: animationController,
-                    currentSketch: currentSketch,
-                    allSketches: allSketches,
-                    canvasGlobalKey: canvasGlobalKey,
-                    filled: filled,
-                    polygonSides: polygonSides,
-                    backgroundImage: backgroundImage,
-                    textOffsetNotifier: textOffsetNotifier,
-                  ),
-                ),
-              ),
+                  child: pdfName == ''
+                      ? InteractiveViewer(
+                          panEnabled: enablePan.value,
+                          child: Container(
+                            color: kCanvasColor,
+                            width: double.maxFinite,
+                            height: double.maxFinite,
+                            child: DrawingCanvas(
+                              pdfName: pdfName,
+                              title: title,
+                              textWidgets: textProvider.textWidgets,
+                              width: MediaQuery.of(context).size.width,
+                              height: MediaQuery.of(context).size.height,
+                              drawingMode: drawingMode,
+                              selectedColor: selectedColor,
+                              strokeSize: strokeSize,
+                              eraserSize: eraserSize,
+                              sideBarController: animationController,
+                              currentSketch: currentSketch,
+                              allSketches: allSketches,
+                              canvasGlobalKey: canvasGlobalKey,
+                              filled: filled,
+                              polygonSides: polygonSides,
+                              backgroundImage: backgroundImage,
+                              textOffsetNotifier: textOffsetNotifier,
+                            ),
+                          ),
+                        )
+                      : InteractiveViewer(
+                          panEnabled: enablePan.value,
+                          child: Container(
+                            color: Colors.transparent,
+                            width: double.maxFinite,
+                            height: double.maxFinite,
+                            child: DrawingCanvas(
+                              pdfName: pdfName,
+                              title: title,
+                              textWidgets: textProvider.textWidgets,
+                              width: MediaQuery.of(context).size.width,
+                              height: MediaQuery.of(context).size.height,
+                              drawingMode: drawingMode,
+                              selectedColor: selectedColor,
+                              strokeSize: strokeSize,
+                              eraserSize: eraserSize,
+                              sideBarController: animationController,
+                              currentSketch: currentSketch,
+                              allSketches: allSketches,
+                              canvasGlobalKey: canvasGlobalKey,
+                              filled: filled,
+                              polygonSides: polygonSides,
+                              backgroundImage: backgroundImage,
+                              textOffsetNotifier: textOffsetNotifier,
+                            ),
+                          ),
+                        )),
             ),
           ),
           Positioned(
@@ -234,7 +265,6 @@ Widget buildDraggableText(
         child: GestureDetector(
           // 길게 누르면 삭제
           onLongPress: () {
-            final textIndex = textPositions.value.keys.toList().indexOf(text);
             showDialog(
               context: context,
               builder: (BuildContext context) {
@@ -243,12 +273,6 @@ Widget buildDraggableText(
                   actions: [
                     TextButton(
                       onPressed: () {
-                        // final updatedTexts =
-                        //     List.from(textPositions.value.keys);
-                        // updatedTexts.remove(text);
-                        // textPositions.value = {
-                        //   for (var t in updatedTexts) t: textPositions.value[t]!
-                        // };
                         textProvider.setTextPositions(
                           ValueNotifier<Map<String, Offset>>({
                             for (var t in textPositions.value.keys)
@@ -311,11 +335,6 @@ Widget buildDraggableText(
                           onPressed: () {
                             textProvider.updateText(
                                 firstText, text, textOffset);
-                            // textPositions.value = Map.from(textPositions.value)
-                            //   ..remove(firstText)
-                            //   ..update(text, (value) => textOffset,
-                            //       ifAbsent: () => textOffset);
-                            // textPositions.value[text] = textOffset;
                             updateImageUrl(
                               text,
                               firstText, // 변경 전 텍스트를 함께 전달

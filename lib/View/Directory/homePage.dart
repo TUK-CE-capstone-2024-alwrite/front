@@ -1,9 +1,11 @@
 import 'package:alwrite/Controller/canvasController.dart';
 import 'package:alwrite/View/Directory/naviDrawer.dart';
 import 'package:alwrite/View/drawingPage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as path;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -57,7 +59,22 @@ class _HomePageState extends State<HomePage> {
                         children: [Icon(Icons.file_download), Text('파일 불러오기')],
                       ),
                       onTap: () async {
-                        //await controller.pickPDF(context); // 파일 피커로 기기의 파일을 불러옴
+                        String? filePath = await FilePicker.platform.pickFiles(
+                          type: FileType.custom,
+                          allowedExtensions: ['pdf'], // PDF 파일만 선택할 수 있도록 설정
+                        ).then((result) => result!.files.single.path);
+
+                        if (filePath != null) {
+                          // 선택된 파일이 PDF인지 확인
+                          if (filePath.toLowerCase().endsWith('.pdf')) {
+                            // PDF 파일을 불러오는 로직
+                            canvascontroller.addCanvasTitlePdf(filePath);
+                            print('선택된 파일은 PDF 파일입니다.');
+                          } else {
+                            // 선택된 파일이 PDF가 아닌 경우 사용자에게 알림을 줄 수 있음
+                            print('선택된 파일은 PDF 파일이 아닙니다.');
+                          }
+                        }
                       },
                     ),
                   ],
@@ -101,16 +118,40 @@ class _HomePageState extends State<HomePage> {
                             ? filteredCanvasTitles[index]
                             : canvascontroller.canvasTitles[index];
                         return GestureDetector(
-                          onTap: () {
+                          onTap: () async {
                             SharedPreferences.getInstance().then((prefs) {
                               prefs.setString('title',
                                   canvascontroller.canvasTitles[index],);
                             });
-                            Get.to(() => DrawingPage(
-                                  title: filteredCanvasTitles.isNotEmpty
-                                      ? filteredCanvasTitles[index]
-                                      : canvascontroller.canvasTitles[index],
-                                ),);
+                            final curTitle = filteredCanvasTitles.isNotEmpty
+                                ? filteredCanvasTitles
+                                : canvascontroller.canvasTitles;
+                            if (curTitle.isNotEmpty) {
+                              if (curTitle[index].contains('.pdf')) {
+                                final SharedPreferences prefs =
+                                    await SharedPreferences.getInstance();
+                                final savedTitles =
+                                    prefs.getStringList('canvasTitlespdf') ??
+                                        [];
+                                savedTitles.forEach((savedTitle) {
+                                  if (path.basename(savedTitle) ==
+                                      curTitle[index]) {
+                                    Get.to(() => DrawingPage(
+                                          title: curTitle[index],
+                                          pdfName: savedTitle,
+                                        ));
+                                  }
+                                });
+                              } else {
+                                Get.to(() => DrawingPage(
+                                    title: curTitle[index], pdfName: ''));
+                              }
+                            }
+                            // Get.to(() => DrawingPage(
+                            //       title: filteredCanvasTitles.isNotEmpty
+                            //           ? filteredCanvasTitles[index]
+                            //           : canvascontroller.canvasTitles[index],
+                            //     ));
                           },
                           onLongPress: () =>
                               _showDeleteCanvasDialog(context, index),
@@ -167,9 +208,6 @@ class _HomePageState extends State<HomePage> {
                 // 새로운 캔버스 ID를 리스트의 길이로 설정 (이미 새 제목을 추가했으므로 -1을 해줌)
 
                 Navigator.pop(context);
-                // 새로운 캔버스 페이지로 이동
-                // Get.to(() => DrawingPage(
-                //     title: titleController.text, canvasId: newCanvasId));
               }
             },
             child: const Text('추가'),
@@ -188,15 +226,15 @@ class _HomePageState extends State<HomePage> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Closes the dialog without deleting.
+              Navigator.pop(context);
             },
             child: const Text('취소'),
           ),
           TextButton(
             onPressed: () {
               canvascontroller.removeCanvasTitle(index);
-              Navigator.pop(context); // Closes the dialog after deletion.
-              Get.back(); // This ensures that if we are viewing a canvas that gets deleted, we return to the previous screen.
+              Navigator.pop(context);
+              Get.back();
             },
             child: const Text('삭제'),
           ),

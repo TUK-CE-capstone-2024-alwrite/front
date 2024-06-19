@@ -35,5 +35,5 @@ Future<void> updateImageUrl(
   }).toList();
 
   await prefs.setStringList('texts', updatedTexts);
-
+}
 
