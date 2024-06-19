@@ -6,9 +6,40 @@ Future<void> saveImageUrl(String imageUrl, String title) async {
       'texts', [...?prefs.getStringList('texts'), '${title},${imageUrl}']);
 }
 
-Future<void> updateImageUrl(String imageUrl, int index, String title) async {
+Future<void> deleteImageUrl(String text) async {
+  final prefs = await SharedPreferences.getInstance();
+  final savedTexts = prefs.getStringList('texts') ?? [];
+
+  // text를 기준으로 삭제할 항목 찾기
+  final updatedTexts = savedTexts.where((savedText) {
+    final parts = savedText.split(',');
+    final savedTextContent = parts[1];
+    return savedTextContent != text;
+  }).toList();
+
+  await prefs.setStringList('texts', updatedTexts);
+}
+
+Future<void> updateImageUrl(
+    String newText, String oldText, String title) async {
+  final prefs = await SharedPreferences.getInstance();
+  final savedTexts = prefs.getStringList('texts') ?? [];
+
+  final updatedTexts = savedTexts.map((savedText) {
+    final parts = savedText.split(',');
+    if (parts[1] == oldText) {
+      // 이전 텍스트와 일치하면 업데이트
+      return '$title,$newText';
+    }
+    return savedText;
+  }).toList();
+
+  await prefs.setStringList('texts', updatedTexts);
+}
+
+Future<void> deleteImageUrl(int index) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   List<String>? texts = prefs.getStringList('texts');
-  texts?[index] = '${title},${imageUrl}';
+  texts?.removeAt(index);
   await prefs.setStringList('texts', texts!);
 }
