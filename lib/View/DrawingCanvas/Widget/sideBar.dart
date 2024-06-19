@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
+import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
+import 'package:alwrite/View/drawingPage.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image/image.dart' as img;
@@ -24,8 +27,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
-class CanvasSideBar extends HookWidget {
+class CanvasSideBar extends HookConsumerWidget {
   final ValueNotifier<Color> selectedColor;
   final ValueNotifier<double> strokeSize;
   final ValueNotifier<double> eraserSize;
@@ -51,8 +56,25 @@ class CanvasSideBar extends HookWidget {
     required this.backgroundImage,
   }) : super(key: key);
 
+  Future<void> saveAsPdf(Uint8List imageData, String fileName) async {
+    //pdf 저장
+    final pdf = pw.Document();
+    final image = pw.MemoryImage(imageData);
+
+    pdf.addPage(pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Center(child: pw.Image(image));
+        },),);
+
+    final output = await getExternalStorageDirectory();
+    final file = File('${output!.path}/$fileName.pdf');
+    await file.writeAsBytes(await pdf.save());
+    print('PDF 파일이 저장된 경로: ${file.path}');
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     //undo를 위한 stack
     final undoRedoStack = useState(
       _UndoRedoStack(
@@ -199,7 +221,7 @@ class CanvasSideBar extends HookWidget {
                   ? Row(
                       children: [
                         TextButton(
-                          child: const Text('텍스트로 변환하기'),
+                          child: const Text('한글로 변환하기'),
                           onPressed: () async {
                             Offset start = undoRedoStack
                                 .value.sketchesNotifier.value.last.points[0];
@@ -231,6 +253,55 @@ class CanvasSideBar extends HookWidget {
                                 await SharedPreferences.getInstance();
                             String title = prefs.getString('title') ?? '';
                             saveImageUrl(getOcrText, title); // prefer 에 저장하는 부분
+
+                            final textProvider =
+                                ref.watch(textProviderProvider);
+                            textProvider.addTextWithPosition(getOcrText, start);
+
+                            undoRedoStack.value
+                                .deleteSketchesInBounds(start, end);
+                          },
+                        ),
+                        TextButton(
+                          child: const Text('영어로 변환하기'),
+                          onPressed: () async {
+                            Offset start = undoRedoStack
+                                .value.sketchesNotifier.value.last.points[0];
+                            Offset end = undoRedoStack
+                                .value.sketchesNotifier.value.last.points.last;
+                            Uint8List? pngBytes = await getBytes();
+
+                            img.Image fullScreenImage =
+                                img.decodeImage(pngBytes!)!;
+
+                            int x = start.dx.toInt();
+                            int y = start.dy.toInt();
+                            int width = (end.dx - start.dx).abs().toInt();
+                            int height = (end.dy - start.dy).abs().toInt();
+                            img.Image croppedImage = img.copyCrop(
+                                fullScreenImage,
+                                x: x,
+                                y: y,
+                                width: width,
+                                height: height,);
+
+                            undoRedoStack.value.undo();
+                            Uint8List croppedBytes =
+                                Uint8List.fromList(img.encodeJpg(croppedImage));
+                            String getOcrText =
+                                await uploadImageToServer2(croppedBytes);
+                            print(getOcrText);
+                            final SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            String title = prefs.getString('title') ?? '';
+                            saveImageUrl(getOcrText, title); // prefer 에 저장하는 부분
+
+                            final textProvider =
+                                ref.watch(textProviderProvider);
+                            textProvider.addTextWithPosition(getOcrText, start);
+
+                            undoRedoStack.value
+                                .deleteSketchesInBounds(start, end);
                           },
                         ),
                       ],
@@ -363,8 +434,12 @@ class CanvasSideBar extends HookWidget {
                   child: TextButton(
                     child: const Text('PDF로 내보내기'),
                     onPressed: () async {
-                      Uint8List? pngBytes = await getBytes();
-                      if (pngBytes != null) saveFile(pngBytes, 'pdf');
+                      final Uint8List? pngBytes =
+                          await getBytes(); // 이전에 구현한 getBytes 함수 사용
+                      if (pngBytes != null) {
+                        await saveAsPdf(pngBytes,
+                            'Alwrite-${DateTime.now().toIso8601String()}',);
+                      }
                     },
                   ),
                 ),
@@ -410,10 +485,12 @@ class CanvasSideBar extends HookWidget {
     }
   }
 
+//한글 API
   Future<String> uploadImageToServer(Uint8List bytes) async {
-    var uri = Uri.parse(Global.apiRoot);
-    var request = http.MultipartRequest('POST', uri);
+    var uri = Uri.parse(Global.apiRoot); //한글 api
+    var request = http.MultipartRequest('POST', uri);   
     request.fields['file'] = 'file';
+    
 
     request.files.add(
       http.MultipartFile.fromBytes(
@@ -423,8 +500,9 @@ class CanvasSideBar extends HookWidget {
         contentType: MediaType('image', 'jpg'),
       ),
     );
-    //여기가 문제
+
     var response = await request.send();
+    
     print('데이터 송신 요청');
     if (response.statusCode == 200) {
       print('Image uploaded successfully');
@@ -435,12 +513,46 @@ class CanvasSideBar extends HookWidget {
     }
   }
 
+//영어API
+  Future<String> uploadImageToServer2(Uint8List bytes) async {
+    var uri2 = Uri.parse(Global.apiRoot2); //영어 api
+    var request2 = http.MultipartRequest('POST', uri2);
+    request2.fields['file'] = 'file';
+
+    request2.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: 'image.jpg',
+        contentType: MediaType('image', 'jpg'),
+      ),
+    );
+    var response2 = await request2.send();
+
+    print('데이터 송신 요청');
+    if (response2.statusCode == 200) {
+      print('Image uploaded successfully');
+      return extractStringFromResponse2(await response2.stream.bytesToString());
+    } else {
+      print('Failed to upload image. Error: ${response2.reasonPhrase}');
+      throw Exception('Failed to upload image');
+    }
+  }
+
   String extractStringFromResponse(String jsonResponse) {
     Map<String, dynamic> decodedResponse = jsonDecode(jsonResponse);
     String extractedString = decodedResponse['result'][0]['string'];
 
     return extractedString;
   }
+
+  String extractStringFromResponse2(String jsonResponse) {
+    Map<String, dynamic> decodedResponse = jsonDecode(jsonResponse);
+    String extractedString = decodedResponse['result'];
+
+    return extractedString;
+  }
+  
 
   Future<ui.Image> get _getImage async {
     final completer = Completer<ui.Image>();
@@ -593,6 +705,14 @@ class _UndoRedoStack {
     _canRedo.value = _redoStack.isNotEmpty;
     _sketchCount++;
     sketchesNotifier.value = [...sketchesNotifier.value, sketch];
+  }
+
+  void deleteSketchesInBounds(Offset start, Offset end) {
+    final sketches = List<Sketch>.from(sketchesNotifier.value);
+    sketches.removeWhere((sketch) => sketch.isInBounds(start, end));
+    sketchesNotifier.value = sketches;
+    _sketchCount = sketches.length;
+    _canRedo.value = false; // 스케치를 삭제한 후 redo stack을 초기화할 필요가 있을 경우
   }
 
   //배경삭제함수

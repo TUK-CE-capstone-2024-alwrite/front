@@ -2,7 +2,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CategoryController extends GetxController {
-  var categories = <String>[].obs;
+  RxList<String> categories = <String>[].obs;
 
   @override
   void onInit() {

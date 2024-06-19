@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class TextProvider extends ChangeNotifier {
-  TextState _textState;
+  final TextState _textState;
 
   TextProvider({
     required List<Widget> textWidgets,
     required ValueNotifier<Map<String, Offset>> textPositions,
-    required double fontSize,
+    required ValueNotifier<double> fontSize,
     required String title,
   }) : _textState = TextState(
           textWidgets: textWidgets,
@@ -19,7 +19,7 @@ class TextProvider extends ChangeNotifier {
   List<Widget> get textWidgets => _textState.textWidgets;
   ValueNotifier<Map<String, Offset>> get textPositions =>
       _textState.textPositions;
-  double get fontSize => _textState.fontSize;
+  ValueNotifier<double> get fontSize => _textState.fontSize;
   String get title => _textState.title;
 
   void setTextWidgets(List<Widget> textWidgets) {
@@ -32,7 +32,7 @@ class TextProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setFontSize(double fontSize) {
+  void setFontSize(ValueNotifier<double> fontSize) {
     _textState.fontSize = fontSize;
     notifyListeners();
   }
@@ -41,12 +41,31 @@ class TextProvider extends ChangeNotifier {
     _textState.title = title;
     notifyListeners();
   }
+
+  void updateTextPosition(String text, Offset newOffset) {
+    _textState.textPositions.value = Map.from(textPositions.value)
+      ..update(text, (_) => newOffset, ifAbsent: () => newOffset);
+    notifyListeners();
+  }
+
+  void updateText(String oldText, String newText, Offset offset) {
+    _textState.textPositions.value = Map.from(textPositions.value)
+      ..remove(oldText)
+      ..update(newText, (_) => offset, ifAbsent: () => offset);
+    notifyListeners();
+  }
+
+  void addTextWithPosition(String text, Offset position) {
+    _textState.textPositions.value = Map.from(textPositions.value)
+      ..putIfAbsent(text, () => position);
+    notifyListeners();
+  }
 }
 
 class TextState {
   List<Widget> textWidgets;
   ValueNotifier<Map<String, Offset>> textPositions;
-  double fontSize;
+  ValueNotifier<double> fontSize;
   String title;
 
   TextState({

@@ -80,6 +80,15 @@ class Sketch {
     );
   }
 
+  bool isInBounds(Offset start, Offset end) {
+    return points.any((point) {
+      return point.dx >= start.dx &&
+          point.dx <= end.dx &&
+          point.dy >= start.dy &&
+          point.dy <= end.dy;
+    });
+  }
+
   Offset parsedOffset(Map<String, dynamic> json) {
     double dx = json['dx'];
     double dy = json['dy'];

@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -22,28 +24,28 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         filteredCanvasTitles = canvascontroller.canvasTitles
             .where((title) =>
-                title.toLowerCase().contains(searchText.toLowerCase()))
+                title.toLowerCase().contains(searchText.toLowerCase()),)
             .toList();
       });
     }
 
     return Scaffold(
         drawerEnableOpenDragGesture: true,
-        drawer: navidrawer(),
+        drawer: const navidrawer(),
         appBar: AppBar(
             backgroundColor: Colors.white10,
-            title: (Text('모든 캔버스')),
+            title: (const Text('모든 캔버스')),
             actions: [
               Padding(
-                padding: EdgeInsets.fromLTRB(0, 0, 15, 0),
+                padding: const EdgeInsets.fromLTRB(0, 0, 15, 0),
                 child: PopupMenuButton(
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.add,
                     size: 40,
                   ),
                   itemBuilder: (context) => [
                     PopupMenuItem(
-                      child: Row(
+                      child: const Row(
                         children: [Icon(Icons.file_copy), Text('새 메모장')],
                       ),
                       onTap: () {
@@ -51,17 +53,17 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
                     PopupMenuItem(
-                      child: Row(
+                      child: const Row(
                         children: [Icon(Icons.file_download), Text('파일 불러오기')],
                       ),
                       onTap: () async {
                         //await controller.pickPDF(context); // 파일 피커로 기기의 파일을 불러옴
                       },
-                    )
+                    ),
                   ],
                 ),
-              )
-            ]),
+              ),
+            ],),
         body: Column(
           children: [
             Padding(
@@ -73,7 +75,7 @@ class _HomePageState extends State<HomePage> {
                     updateFilteredCanvasTitles();
                   });
                 },
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: '검색',
                   prefixIcon: Icon(Icons.search),
                   border: OutlineInputBorder(),
@@ -82,7 +84,7 @@ class _HomePageState extends State<HomePage> {
             ),
             Expanded(
                 child: Obx(() => GridView.builder(
-                      padding: EdgeInsets.all(30),
+                      padding: const EdgeInsets.all(30),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: MediaQuery.of(context).orientation ==
                                   Orientation.landscape
@@ -90,7 +92,7 @@ class _HomePageState extends State<HomePage> {
                               : 4,
                           mainAxisSpacing: 80,
                           crossAxisSpacing: 38,
-                          childAspectRatio: 0.82),
+                          childAspectRatio: 0.82,),
                       itemCount: filteredCanvasTitles.isNotEmpty
                           ? filteredCanvasTitles.length
                           : canvascontroller.canvasTitles.length,
@@ -102,13 +104,13 @@ class _HomePageState extends State<HomePage> {
                           onTap: () {
                             SharedPreferences.getInstance().then((prefs) {
                               prefs.setString('title',
-                                  canvascontroller.canvasTitles[index]);
+                                  canvascontroller.canvasTitles[index],);
                             });
                             Get.to(() => DrawingPage(
                                   title: filteredCanvasTitles.isNotEmpty
                                       ? filteredCanvasTitles[index]
                                       : canvascontroller.canvasTitles[index],
-                                ));
+                                ),);
                           },
                           onLongPress: () =>
                               _showDeleteCanvasDialog(context, index),
@@ -124,19 +126,19 @@ class _HomePageState extends State<HomePage> {
                                   filteredCanvasTitles.isNotEmpty
                                       ? filteredCanvasTitles[index]
                                       : canvascontroller.canvasTitles[index],
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 19,
                                     fontWeight: FontWeight.w400,
                                     letterSpacing: 1.5,
-                                  )),
+                                  ),),
                             ),
                           ),
                         );
                       },
-                    )))
+                    ),),),
           ],
-        ));
+        ),);
   }
 
 // 캔버스  사용자가  제목을 직접 입력하여 만들 게 하는 로직
@@ -145,17 +147,17 @@ class _HomePageState extends State<HomePage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("새 캔버스 제목 입력"),
+        title: const Text('새 캔버스 제목 입력'),
         content: TextField(
           controller: titleController,
-          decoration: InputDecoration(hintText: "캔버스 제목"),
+          decoration: const InputDecoration(hintText: '캔버스 제목'),
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
             },
-            child: Text("취소"),
+            child: const Text('취소'),
           ),
           TextButton(
             onPressed: () {
@@ -170,7 +172,7 @@ class _HomePageState extends State<HomePage> {
                 //     title: titleController.text, canvasId: newCanvasId));
               }
             },
-            child: Text("추가"),
+            child: const Text('추가'),
           ),
         ],
       ),
@@ -181,14 +183,14 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("캔버스 삭제"),
-        content: Text("이 캔버스를 삭제하시겠습니까?"),
+        title: const Text('캔버스 삭제'),
+        content: const Text('이 캔버스를 삭제하시겠습니까?'),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Closes the dialog without deleting.
             },
-            child: Text("취소"),
+            child: const Text('취소'),
           ),
           TextButton(
             onPressed: () {
@@ -196,7 +198,7 @@ class _HomePageState extends State<HomePage> {
               Navigator.pop(context); // Closes the dialog after deletion.
               Get.back(); // This ensures that if we are viewing a canvas that gets deleted, we return to the previous screen.
             },
-            child: Text("삭제"),
+            child: const Text('삭제'),
           ),
         ],
       ),

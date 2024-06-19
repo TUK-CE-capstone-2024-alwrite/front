@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class CategoryPage extends StatelessWidget {
   final String category;
-  CategoryPage({
+  const CategoryPage({super.key, 
     required this.category,
   });
 
