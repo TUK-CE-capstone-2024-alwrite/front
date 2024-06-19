@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class TextProvider extends ChangeNotifier {
-  TextState _textState;
+  final TextState _textState;
 
   TextProvider({
     required List<Widget> textWidgets,

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<void> saveImageUrl(String imageUrl, String title) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   await prefs.setStringList(
-      'texts', [...?prefs.getStringList('texts'), '${title},${imageUrl}']);
+      'texts', [...?prefs.getStringList('texts'), '$title,$imageUrl'],);
 }
 
 Future<void> deleteImageUrl(String text) async {
@@ -36,3 +36,4 @@ Future<void> updateImageUrl(
 
   await prefs.setStringList('texts', updatedTexts);
 }
+

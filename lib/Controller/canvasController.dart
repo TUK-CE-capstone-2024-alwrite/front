@@ -13,10 +13,7 @@ class Canvascontroller extends GetxController {
     loadCanvasTitles(); // 앱 실행 시점에 데이터를 불러옴
   }
 
-  @override
-  void onInit() {
-    super.onInit();
-  }
+
 
   void addCanvasTitle(String title) {
     canvasTitles.add(title);
