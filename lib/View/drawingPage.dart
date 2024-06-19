@@ -60,7 +60,7 @@ class DrawingPage extends HookConsumerWidget {
             textProvider.setTextPositions(ValueNotifier<Map<String, Offset>>({
               ...textProvider.textPositions.value,
               text: textProvider.textPositions.value[text] ?? initialOffset,
-            }),);
+            }));
             return buildDraggableText(
               textProvider,
               textProvider.title,
@@ -252,7 +252,7 @@ Widget buildDraggableText(
                         textProvider.setTextPositions(
                           ValueNotifier<Map<String, Offset>>({
                             for (var t in textPositions.value.keys)
-                              if (t != text) t: textPositions.value[t]!,
+                              if (t != text) t: textPositions.value[t]!
                           }),
                         );
                         deleteImageUrl(text);
@@ -310,7 +310,7 @@ Widget buildDraggableText(
                         TextButton(
                           onPressed: () {
                             textProvider.updateText(
-                                firstText, text, textOffset,);
+                                firstText, text, textOffset);
                             // textPositions.value = Map.from(textPositions.value)
                             //   ..remove(firstText)
                             //   ..update(text, (value) => textOffset,
@@ -330,6 +330,12 @@ Widget buildDraggableText(
                             Navigator.of(context).pop();
                           },
                           child: const Text('취소'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text('취소'),
                         ),
                       ],
                     );
@@ -398,7 +404,7 @@ class _CustomAppBar extends StatelessWidget {
                   fontWeight: FontWeight.w400,
                   fontSize: 27,
                   color: Colors.black,
-                  letterSpacing: 3,),
+                  letterSpacing: 3),
             ),
             IconButton(
               onPressed: () {

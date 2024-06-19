@@ -21,7 +21,7 @@ Future<void> deleteImageUrl(String text) async {
 }
 
 Future<void> updateImageUrl(
-    String newText, String oldText, String title,) async {
+    String newText, String oldText, String title) async {
   final prefs = await SharedPreferences.getInstance();
   final savedTexts = prefs.getStringList('texts') ?? [];
 
@@ -35,5 +35,5 @@ Future<void> updateImageUrl(
   }).toList();
 
   await prefs.setStringList('texts', updatedTexts);
-}
+
 

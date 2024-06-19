@@ -56,7 +56,6 @@ dependencies:
   riverpod: ^2.5.1
   hooks_riverpod: ^2.5.1
   get: ^4.6.6
-  equatable: ^2.0.5
   pdf: ^3.10.8
 
 dev_dependencies:

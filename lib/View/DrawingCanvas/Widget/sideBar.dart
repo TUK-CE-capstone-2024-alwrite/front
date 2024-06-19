@@ -69,6 +69,7 @@ class CanvasSideBar extends HookConsumerWidget {
 
     final output = await getExternalStorageDirectory();
     final file = File('${output!.path}/$fileName.pdf');
+
     await file.writeAsBytes(await pdf.save());
     print('PDF 파일이 저장된 경로: ${file.path}');
   }
@@ -302,6 +303,7 @@ class CanvasSideBar extends HookConsumerWidget {
 
                             undoRedoStack.value
                                 .deleteSketchesInBounds(start, end);
+
                           },
                         ),
                       ],
@@ -438,7 +440,7 @@ class CanvasSideBar extends HookConsumerWidget {
                           await getBytes(); // 이전에 구현한 getBytes 함수 사용
                       if (pngBytes != null) {
                         await saveAsPdf(pngBytes,
-                            'Alwrite-${DateTime.now().toIso8601String()}',);
+                            'Alwrite-${DateTime.now().toIso8601String()}');
                       }
                     },
                   ),
