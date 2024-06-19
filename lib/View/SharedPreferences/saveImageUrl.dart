@@ -36,10 +36,3 @@ Future<void> updateImageUrl(
 
   await prefs.setStringList('texts', updatedTexts);
 }
-
-Future<void> deleteImageUrl(int index) async {
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
-  List<String>? texts = prefs.getStringList('texts');
-  texts?.removeAt(index);
-  await prefs.setStringList('texts', texts!);
-}

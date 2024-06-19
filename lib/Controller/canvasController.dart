@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as path;
 
 class Canvascontroller extends GetxController {
   RxList<String> canvasTitles = <String>[].obs; // GetX의 Observable 리스트
@@ -21,6 +22,13 @@ class Canvascontroller extends GetxController {
     canvasTitles.add(title);
 
     saveCanvasTitles();
+    loadCanvasTitles(); // 저장된 데이터를 불러와서 갱신
+  }
+
+  void addCanvasTitlePdf(String title) {
+    canvasTitles.add(path.basename(title));
+    saveCanvasTitles();
+    saveCanvasTitlesPdf(title);
     loadCanvasTitles(); // 저장된 데이터를 불러와서 갱신
   }
 
@@ -67,5 +75,11 @@ class Canvascontroller extends GetxController {
   void saveCanvasTitles() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('canvasTitles', canvasTitles.toList());
+  }
+
+  void saveCanvasTitlesPdf(String title) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+        'canvasTitlespdf', [...?prefs.getStringList('canvasTitlespdf'), title]);
   }
 }
