@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:alwrite/Provider/pageProvider.dart';
 import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
 import 'package:alwrite/View/drawingPage.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -30,7 +31,11 @@ import 'package:universal_html/html.dart' as html;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-class CanvasSideBar extends HookConsumerWidget {
+final pageProviderProvider = ChangeNotifierProvider<PageProvider>((ref) {
+  return PageProvider(currentPage: ValueNotifier(0));
+});
+
+class CanvasSideBarPdf extends HookConsumerWidget {
   final ValueNotifier<Color> selectedColor;
   final ValueNotifier<double> strokeSize;
   final ValueNotifier<double> eraserSize;
@@ -41,9 +46,10 @@ class CanvasSideBar extends HookConsumerWidget {
   final ValueNotifier<bool> filled;
   final ValueNotifier<int> polygonSides;
   final ValueNotifier<ui.Image?> backgroundImage;
-
-  const CanvasSideBar({
+  final ValueNotifier<Map<int, List<Sketch>>> allSketchesPerPage;
+  const CanvasSideBarPdf({
     Key? key,
+    required this.allSketchesPerPage,
     required this.selectedColor,
     required this.strokeSize,
     required this.eraserSize,
@@ -80,10 +86,20 @@ class CanvasSideBar extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     //undo를 위한 stack
+    final pageProvider = ref.watch(pageProviderProvider);
+
+    useEffect(() {
+      getPage().then((value) {
+        pageProvider.setCurrentPage(ValueNotifier(value));
+      });
+    });
+
     final undoRedoStack = useState(
       _UndoRedoStack(
         sketchesNotifier: allSketches,
         currentSketchNotifier: currentSketch,
+        allSketchesPerPage: allSketchesPerPage,
+        pageProvider: pageProvider,
       ),
     );
     final scrollController = useScrollController();
@@ -228,9 +244,20 @@ class CanvasSideBar extends HookConsumerWidget {
                           child: const Text('한글로 변환하기'),
                           onPressed: () async {
                             Offset start = undoRedoStack
-                                .value.sketchesNotifier.value.last.points[0];
+                                    .value
+                                    .allSketchesPerPage
+                                    .value[pageProvider.currentPage]
+                                    ?.last
+                                    .points[0] ??
+                                Offset.zero;
                             Offset end = undoRedoStack
-                                .value.sketchesNotifier.value.last.points.last;
+                                    .value
+                                    .allSketchesPerPage
+                                    .value[pageProvider.currentPage]
+                                    ?.last
+                                    .points
+                                    .last ??
+                                Offset.zero;
                             Uint8List? pngBytes = await getBytes();
 
                             img.Image fullScreenImage =
@@ -262,7 +289,7 @@ class CanvasSideBar extends HookConsumerWidget {
                             final textProvider =
                                 ref.watch(textProviderProvider);
                             textProvider.addTextWithPosition(getOcrText, start);
-
+                            textProvider.setPage(pageProvider.currentPage);
                             undoRedoStack.value
                                 .deleteSketchesInBounds(start, end);
                           },
@@ -271,9 +298,20 @@ class CanvasSideBar extends HookConsumerWidget {
                           child: const Text('영어로 변환하기'),
                           onPressed: () async {
                             Offset start = undoRedoStack
-                                .value.sketchesNotifier.value.last.points[0];
+                                    .value
+                                    .allSketchesPerPage
+                                    .value[pageProvider.currentPage]
+                                    ?.last
+                                    .points[0] ??
+                                Offset.zero;
                             Offset end = undoRedoStack
-                                .value.sketchesNotifier.value.last.points.last;
+                                    .value
+                                    .allSketchesPerPage
+                                    .value[pageProvider.currentPage]
+                                    ?.last
+                                    .points
+                                    .last ??
+                                Offset.zero;
                             Uint8List? pngBytes = await getBytes();
 
                             img.Image fullScreenImage =
@@ -305,6 +343,7 @@ class CanvasSideBar extends HookConsumerWidget {
                             final textProvider =
                                 ref.watch(textProviderProvider);
                             textProvider.addTextWithPosition(getOcrText, start);
+                            textProvider.setPage(pageProvider.currentPage);
 
                             undoRedoStack.value
                                 .deleteSketchesInBounds(start, end);
@@ -372,9 +411,7 @@ class CanvasSideBar extends HookConsumerWidget {
             Wrap(
               children: [
                 TextButton(
-                  onPressed: allSketches.value.isNotEmpty
-                      ? () => undoRedoStack.value.undo()
-                      : null,
+                  onPressed: () => undoRedoStack.value.undo(),
                   child: const Text('Undo'),
                 ),
                 ValueListenableBuilder<bool>(
@@ -656,6 +693,8 @@ class _UndoRedoStack {
   _UndoRedoStack({
     required this.sketchesNotifier,
     required this.currentSketchNotifier,
+    required this.allSketchesPerPage,
+    required this.pageProvider,
   }) {
     _sketchCount = sketchesNotifier.value.length;
     sketchesNotifier.addListener(_sketchesCountListener);
@@ -663,10 +702,10 @@ class _UndoRedoStack {
 
   final ValueNotifier<List<Sketch>> sketchesNotifier;
   final ValueNotifier<Sketch?> currentSketchNotifier;
-
+  final ValueNotifier<Map<int, List<Sketch>>> allSketchesPerPage;
+  final PageProvider pageProvider;
   //redo할수 있는 스케치 컬렉션
   late final List<Sketch> _redoStack = [];
-
   // redo 가능한 경우의 로직
   ValueNotifier<bool> get canRedo => _canRedo;
   late final ValueNotifier<bool> _canRedo = ValueNotifier(false);
@@ -674,12 +713,13 @@ class _UndoRedoStack {
   late int _sketchCount;
 
   void _sketchesCountListener() {
-    if (sketchesNotifier.value.length > _sketchCount) {
+    if (allSketchesPerPage.value[pageProvider.currentPage]!.length >
+        _sketchCount) {
       //만약 새로운 스케치가 그려지면
       //예전 스케치는 무효화 되기 때문에 클리어 함
       _redoStack.clear();
       _canRedo.value = false;
-      _sketchCount = sketchesNotifier.value.length;
+      _sketchCount = allSketchesPerPage.value[pageProvider.currentPage]!.length;
     }
   }
 
@@ -687,17 +727,19 @@ class _UndoRedoStack {
   void clear() {
     _sketchCount = 0;
     sketchesNotifier.value = [];
+    allSketchesPerPage.value.remove(pageProvider.currentPage);
     _canRedo.value = false;
     currentSketchNotifier.value = null;
   }
 
   //undo 함수
   void undo() {
-    final sketches = List<Sketch>.from(sketchesNotifier.value);
+    final sketches = List<Sketch>.from(
+        allSketchesPerPage.value[pageProvider.currentPage] ?? []);
     if (sketches.isNotEmpty) {
       _sketchCount--;
       _redoStack.add(sketches.removeLast());
-      sketchesNotifier.value = sketches;
+      allSketchesPerPage.value[pageProvider.currentPage] = sketches;
       _canRedo.value = true;
       currentSketchNotifier.value = null;
     }
@@ -709,13 +751,17 @@ class _UndoRedoStack {
     final sketch = _redoStack.removeLast();
     _canRedo.value = _redoStack.isNotEmpty;
     _sketchCount++;
-    sketchesNotifier.value = [...sketchesNotifier.value, sketch];
+    allSketchesPerPage.value[pageProvider.currentPage] = [
+      ...?allSketchesPerPage.value[pageProvider.currentPage],
+      sketch
+    ];
   }
 
   void deleteSketchesInBounds(Offset start, Offset end) {
-    final sketches = List<Sketch>.from(sketchesNotifier.value);
+    final sketches = List<Sketch>.from(
+        allSketchesPerPage.value[pageProvider.currentPage] ?? []);
     sketches.removeWhere((sketch) => sketch.isInBounds(start, end));
-    sketchesNotifier.value = sketches;
+    allSketchesPerPage.value[pageProvider.currentPage] = sketches;
     _sketchCount = sketches.length;
     _canRedo.value = false; // 스케치를 삭제한 후 redo stack을 초기화할 필요가 있을 경우
   }

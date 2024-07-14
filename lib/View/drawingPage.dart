@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:alwrite/Provider/textProvider.dart';
+import 'package:alwrite/View/DrawingCanvas/Widget/sideBarPdf.dart';
+import 'package:alwrite/View/DrawingCanvas/drawingCanvasPdf.dart';
 import 'package:alwrite/View/SharedPreferences/saveImageUrl.dart';
 import 'package:alwrite/main.dart';
 import 'package:alwrite/View/DrawingCanvas/drawingCanvas.dart';
@@ -21,6 +23,7 @@ final textProviderProvider = ChangeNotifierProvider<TextProvider>((ref) {
     textPositions: ValueNotifier<Map<String, Offset>>({}),
     fontSize: ValueNotifier<double>(30.0),
     title: '',
+    page: 0,
   );
 });
 
@@ -37,7 +40,7 @@ class DrawingPage extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final enablePan = useState<bool>(false); // 초기 팬 활성화 상태는 false
     final allSketches = useState<List<Sketch>>([]);
-
+    final allSketchesPerPage = useState<Map<int, List<Sketch>>>({});
     final textProvider = ref.watch(textProviderProvider);
     final screenSize = MediaQuery.of(context).size;
     final initialOffset = Offset(
@@ -89,34 +92,65 @@ class DrawingPage extends HookConsumerWidget {
       [],
     );
 
-    useEffect(() {
-      Future<void> loadData() async {
-        final prefs = await SharedPreferences.getInstance();
-        String? sketchesData =
-            prefs.getString('sketches_$title'); // 캔버스별 데이터 불러오기
-        if (sketchesData != null) {
-          List<dynamic> sketchesJson = jsonDecode(sketchesData);
-          var loadedSketches = sketchesJson
-              .map((item) => Sketch.fromJson(item as Map<String, dynamic>))
-              .toList();
-          allSketches.value = loadedSketches;
+    useEffect(
+      () {
+        Future<void> loadData() async {
+          final prefs = await SharedPreferences.getInstance();
+          String? sketchesData =
+              prefs.getString('sketches_$title'); // 캔버스별 데이터 불러오기
+          if (sketchesData != null) {
+            List<dynamic> sketchesJson = jsonDecode(sketchesData);
+            var loadedSketches = sketchesJson
+                .map((item) => Sketch.fromJson(item as Map<String, dynamic>))
+                .toList();
+
+            allSketches.value = loadedSketches;
+            var loadedSketchesPerPage = <int, List<Sketch>>{};
+            if (pdfName != '') {
+              for (var sketch in loadedSketches) {
+                var pageNumber = 0;
+                if (!loadedSketchesPerPage.containsKey(pageNumber)) {
+                  loadedSketchesPerPage[pageNumber] = [];
+                }
+                loadedSketchesPerPage[pageNumber]!.add(sketch);
+                pageNumber++;
+              }
+              allSketchesPerPage.value = loadedSketchesPerPage;
+            }
+          }
         }
-      }
 
-      loadData();
-      return () => {};
-    }, const [],);
+        loadData();
+        return () => {};
+      },
+      const [],
+    );
 
-    useEffect(() {
-      Future<void> saveData() async {
-        final prefs = await SharedPreferences.getInstance();
-        String sketchesData = jsonEncode(
-            allSketches.value.map((sketch) => sketch.toJson()).toList(),);
-        await prefs.setString('sketches_$title', sketchesData); // 캔버스별 데이터 저장
-      }
+    useEffect(
+      () {
+        Future<void> saveData() async {
+          final prefs = await SharedPreferences.getInstance();
+          String sketchesData = jsonEncode(
+            allSketches.value.map((sketch) => sketch.toJson()).toList(),
+          );
+          String sketchesDataPdf = jsonEncode(
+            allSketchesPerPage.value.values
+                .expand((element) => element)
+                .map((sketch) => sketch.toJson())
+                .toList(),
+          );
+          if (pdfName == '') {
+            await prefs.setString(
+                'sketches_$title', sketchesData); // 캔버스별 데이터 저장
+          } else {
+            await prefs.setString('sketches_$title', sketchesDataPdf);
+          } // 캔버스별 데이터 저장
+        }
 
-      return saveData;
-    }, [allSketches.value],);
+        return saveData;
+      },
+      [allSketches.value],
+    );
 
     final selectedColor = useState(Colors.black);
     final strokeSize = useState<double>(10);
@@ -127,13 +161,12 @@ class DrawingPage extends HookConsumerWidget {
     final backgroundImage = useState<Image?>(null);
     final size = MediaQuery.of(context).size;
     final textInitialPosition = Offset(size.width / 2, size.height / 2);
-
+    final currentPage = useState(0);
     final textOffsetNotifier =
         useState<Offset>(textInitialPosition); // 텍스트 위치를 위한 상태 추가
     final canvasGlobalKey = GlobalKey();
 
     ValueNotifier<Sketch?> currentSketch = useState(null);
-    //ValueNotifier<List<Sketch>> allSketches = useState([]);
 
     final animationController = useAnimationController(
       duration: const Duration(milliseconds: 150),
@@ -143,8 +176,8 @@ class DrawingPage extends HookConsumerWidget {
       body: Stack(
         children: [
           Container(
-            margin:
-                const EdgeInsets.only(top: kToolbarHeight), // AppBar 높이만큼 상단 여백 추가
+            margin: const EdgeInsets.only(
+                top: kToolbarHeight), // AppBar 높이만큼 상단 여백 추가
             child: Listener(
               onPointerDown: (PointerDownEvent event) {
                 // 스타일러스 펜 입력 감지
@@ -165,7 +198,6 @@ class DrawingPage extends HookConsumerWidget {
                             width: double.maxFinite,
                             height: double.maxFinite,
                             child: DrawingCanvas(
-                              pdfName: pdfName,
                               title: title,
                               textWidgets: textProvider.textWidgets,
                               width: MediaQuery.of(context).size.width,
@@ -191,7 +223,7 @@ class DrawingPage extends HookConsumerWidget {
                             color: Colors.transparent,
                             width: double.maxFinite,
                             height: double.maxFinite,
-                            child: DrawingCanvas(
+                            child: DrawingCanvasPdf(
                               pdfName: pdfName,
                               title: title,
                               textWidgets: textProvider.textWidgets,
@@ -203,42 +235,68 @@ class DrawingPage extends HookConsumerWidget {
                               eraserSize: eraserSize,
                               sideBarController: animationController,
                               currentSketch: currentSketch,
-                              allSketches: allSketches,
+                              allSketchesPerPage: allSketchesPerPage,
                               canvasGlobalKey: canvasGlobalKey,
                               filled: filled,
                               polygonSides: polygonSides,
                               backgroundImage: backgroundImage,
                               textOffsetNotifier: textOffsetNotifier,
+                              currentPage: currentPage,
                             ),
                           ),
                         )),
             ),
           ),
-          Positioned(
-            top: kToolbarHeight + 10,
-            // left: -5,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(-1, 0),
-                end: Offset.zero,
-              ).animate(animationController),
-              child: CanvasSideBar(
-                drawingMode: drawingMode,
-                selectedColor: selectedColor,
-                strokeSize: strokeSize,
-                eraserSize: eraserSize,
-                currentSketch: currentSketch,
-                allSketches: allSketches,
-                canvasGlobalKey: canvasGlobalKey,
-                filled: filled,
-                polygonSides: polygonSides,
-                backgroundImage: backgroundImage,
-              ),
-            ),
-          ),
+          pdfName == ''
+              ? Positioned(
+                  top: kToolbarHeight + 10,
+                  // left: -5,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(-1, 0),
+                      end: Offset.zero,
+                    ).animate(animationController),
+                    child: CanvasSideBar(
+                      drawingMode: drawingMode,
+                      selectedColor: selectedColor,
+                      strokeSize: strokeSize,
+                      eraserSize: eraserSize,
+                      currentSketch: currentSketch,
+                      allSketches: allSketches,
+                      canvasGlobalKey: canvasGlobalKey,
+                      filled: filled,
+                      polygonSides: polygonSides,
+                      backgroundImage: backgroundImage,
+                    ),
+                  ),
+                )
+              : Positioned(
+                  top: kToolbarHeight + 10,
+                  // left: -5,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(-1, 0),
+                      end: Offset.zero,
+                    ).animate(animationController),
+                    child: CanvasSideBarPdf(
+                      allSketchesPerPage: allSketchesPerPage,
+                      drawingMode: drawingMode,
+                      selectedColor: selectedColor,
+                      strokeSize: strokeSize,
+                      eraserSize: eraserSize,
+                      currentSketch: currentSketch,
+                      allSketches: allSketches,
+                      canvasGlobalKey: canvasGlobalKey,
+                      filled: filled,
+                      polygonSides: polygonSides,
+                      backgroundImage: backgroundImage,
+                    ),
+                  ),
+                ),
           _CustomAppBar(
-              animationController: animationController,
-              title: title,), // 제목을 인자로 전달
+            animationController: animationController,
+            title: title,
+          ), // 제목을 인자로 전달
         ],
       ),
     );
@@ -350,12 +408,6 @@ Widget buildDraggableText(
                           },
                           child: const Text('취소'),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          child: Text('취소'),
-                        ),
                       ],
                     );
                   },
@@ -372,8 +424,11 @@ Widget buildDraggableText(
             onDragEnd: (details) {
               // 드래그 끝나면 위치 업데이트
               textPositions.value = Map.from(textPositions.value)
-                ..update(text, (value) => details.offset,
-                    ifAbsent: () => details.offset,);
+                ..update(
+                  text,
+                  (value) => details.offset,
+                  ifAbsent: () => details.offset,
+                );
             },
             child: Text(
               text,
@@ -390,9 +445,11 @@ class _CustomAppBar extends StatelessWidget {
   final AnimationController animationController;
   final String title; // 캔버스 제목을 위한 변수 추가
 
-  const _CustomAppBar(
-      {Key? key, required this.animationController, required this.title,})
-      : super(key: key);
+  const _CustomAppBar({
+    Key? key,
+    required this.animationController,
+    required this.title,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
